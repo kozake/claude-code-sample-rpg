@@ -205,8 +205,11 @@ export class TitleScene extends Scene {
 
     switch (index) {
       case 0:
-        // はじめから → フィールドへ（後でオープニングカットシーンを挟む）
+        // はじめから → パーティ初期化 → フィールドへ
         this.blinkSelection(index, () => {
+          const members = this.game.content.getPartyMembers();
+          this.game.state.initNewGame(members);
+          this.game.storyFlags = {};
           const field = new FieldScene(this.game, 'world');
           this.game.scenes.switchTo(field);
         });
@@ -221,6 +224,7 @@ export class TitleScene extends Scene {
               const saveManager = new SaveManager(this.game);
               const data = saveManager.load(slotId);
               if (data) {
+                this.game.state.loadFromSave(data);
                 this.game.storyFlags = data.storyFlags;
                 const field = new FieldScene(this.game, data.currentMap, data.playerPosition.x, data.playerPosition.y);
                 this.game.scenes.switchTo(field);

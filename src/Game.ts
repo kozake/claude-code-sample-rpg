@@ -4,6 +4,7 @@ import { EventBus } from './core/EventBus';
 import { SceneManager } from './core/SceneManager';
 import { ContentLoader } from './core/ContentLoader';
 import { InputManager } from './systems/InputManager';
+import { GameState } from './systems/GameState';
 
 export class Game {
   readonly app: Application;
@@ -11,6 +12,7 @@ export class Game {
   readonly scenes: SceneManager;
   readonly content = new ContentLoader();
   readonly input = new InputManager();
+  readonly state = new GameState();
 
   /** ストーリーフラグ（セーブ/ロード対象） */
   storyFlags: Record<string, boolean | number | string> = {};

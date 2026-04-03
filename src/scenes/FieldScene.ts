@@ -1,3 +1,4 @@
+import { Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { TileMap } from '../map/TileMap';
 import { Camera } from '../map/Camera';
@@ -7,7 +8,10 @@ import { DPad } from '../ui/DPad';
 import { ActionButton } from '../ui/ActionButton';
 import { MenuButton } from '../ui/MenuButton';
 import { MessageWindow } from '../ui/MessageWindow';
-import { TILE_SIZE } from '../constants';
+import { MenuScene } from './MenuScene';
+import { StatusScene } from './StatusScene';
+import { ItemScene } from './ItemScene';
+import { EquipScene } from './EquipScene';
 import type { Game } from '../Game';
 import type { MapData } from '../data/types';
 
@@ -16,6 +20,7 @@ import type { MapData } from '../data/types';
  * - マップ描画 + カメラ追従
  * - プレイヤー移動
  * - ワープ・イベント判定
+ * - メニューオーバーレイ
  * - UIオーバーレイ
  */
 export class FieldScene extends Scene {
@@ -27,6 +32,10 @@ export class FieldScene extends Scene {
   private actionBtn!: ActionButton;
   private menuBtn!: MenuButton;
   private messageWindow = new MessageWindow();
+
+  /** メニュー等のオーバーレイ用 */
+  private overlayContainer = new Container();
+  private overlayScene: Scene | null = null;
 
   private mapData: MapData | null = null;
   private mapId: string;
@@ -75,11 +84,19 @@ export class FieldScene extends Scene {
     this.container.addChild(this.actionBtn.container);
     this.container.addChild(this.menuBtn.container);
     this.container.addChild(this.messageWindow.container);
+    this.container.addChild(this.overlayContainer);
   }
 
   update(delta: number): void {
     const input = this.game.input;
     input.update();
+
+    // オーバーレイ（メニュー等）が開いている場合
+    if (this.overlayScene) {
+      this.overlayScene.update(delta);
+      input.resetOneShot();
+      return;
+    }
 
     // メッセージ表示中は移動不可
     if (this.messageWindow.isVisible) {
@@ -87,6 +104,13 @@ export class FieldScene extends Scene {
       if (input.isActionPressed) {
         this.messageWindow.advance();
       }
+      input.resetOneShot();
+      return;
+    }
+
+    // メニューボタン
+    if (input.isMenuPressed) {
+      this.openMenu();
       input.resetOneShot();
       return;
     }
@@ -113,6 +137,45 @@ export class FieldScene extends Scene {
     input.resetOneShot();
   }
 
+  private openMenu(): void {
+    const menuScene = new MenuScene(
+      this.game,
+      () => this.closeOverlay(),
+      (cmd) => {
+        switch (cmd) {
+          case 'status':
+            this.showOverlay(new StatusScene(this.game, () => this.openMenu()));
+            break;
+          case 'item':
+            this.showOverlay(new ItemScene(this.game, () => this.openMenu()));
+            break;
+          case 'equip':
+            this.showOverlay(new EquipScene(this.game, () => this.openMenu()));
+            break;
+          default:
+            // じゅもん/ならびかえ/さくせんは後のPhaseで実装
+            break;
+        }
+      }
+    );
+    this.showOverlay(menuScene);
+  }
+
+  private showOverlay(scene: Scene): void {
+    this.closeOverlay();
+    this.overlayScene = scene;
+    this.overlayContainer.addChild(scene.container);
+    scene.onEnter();
+  }
+
+  private closeOverlay(): void {
+    if (this.overlayScene) {
+      this.overlayScene.onExit();
+      this.overlayContainer.removeChildren();
+      this.overlayScene = null;
+    }
+  }
+
   private checkWarps(): void {
     if (!this.mapData?.warps) return;
 
@@ -134,6 +197,11 @@ export class FieldScene extends Scene {
       // onceFlag チェック
       if (event.onceFlag && this.game.storyFlags[event.onceFlag]) continue;
 
+      // アイテム取得
+      if (event.action.giveItem) {
+        this.game.state.addItem(event.action.giveItem.id, event.action.giveItem.count);
+      }
+
       // メッセージ表示
       if (event.action.message) {
         this.messageWindow.show(event.action.message, () => {
@@ -146,7 +214,6 @@ export class FieldScene extends Scene {
   }
 
   private checkInteraction(): void {
-    // 前方1タイルのNPCをチェック
     const dirOffset = {
       up: { dx: 0, dy: -1 },
       down: { dx: 0, dy: 1 },
@@ -161,7 +228,6 @@ export class FieldScene extends Scene {
 
     for (const npc of this.mapData.npcs) {
       if (npc.x === checkX && npc.y === checkY) {
-        // TODO: NPCデータ読み込み＆会話表示（Phase 4）
         this.messageWindow.show([`${npc.id}に はなしかけた！`, 'まだ かいわデータが ありません。']);
         return;
       }
@@ -169,6 +235,7 @@ export class FieldScene extends Scene {
   }
 
   onExit(): void {
+    this.closeOverlay();
     super.onExit();
   }
 }
