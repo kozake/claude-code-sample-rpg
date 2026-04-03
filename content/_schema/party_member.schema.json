@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PartyMembers",
+  "description": "パーティメンバー定義の配列",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "name", "class", "level", "hp", "maxHp", "mp", "maxMp", "attack", "defense", "speed", "exp", "equipment", "spells", "criticalRate", "dodgeRate", "statusEffects", "sprite", "joinedByDefault", "removable", "storyLocked"],
+    "properties": {
+      "id": { "type": "string" },
+      "name": { "type": "string" },
+      "class": { "type": "string" },
+      "level": { "type": "integer", "minimum": 1 },
+      "hp": { "type": "integer", "minimum": 0 },
+      "maxHp": { "type": "integer", "minimum": 1 },
+      "mp": { "type": "integer", "minimum": 0 },
+      "maxMp": { "type": "integer", "minimum": 0 },
+      "attack": { "type": "integer", "minimum": 0 },
+      "defense": { "type": "integer", "minimum": 0 },
+      "speed": { "type": "integer", "minimum": 0 },
+      "exp": { "type": "integer", "minimum": 0 },
+      "equipment": {
+        "type": "object",
+        "properties": {
+          "weapon": { "type": ["string", "null"] },
+          "armor": { "type": ["string", "null"] },
+          "shield": { "type": ["string", "null"] },
+          "accessory": { "type": ["string", "null"] }
+        },
+        "required": ["weapon", "armor", "shield", "accessory"]
+      },
+      "spells": { "type": "array", "items": { "type": "string" } },
+      "criticalRate": { "type": "number", "minimum": 0 },
+      "dodgeRate": { "type": "number", "minimum": 0 },
+      "statusEffects": { "type": "array" },
+      "sprite": { "type": "string" },
+      "joinedByDefault": { "type": "boolean" },
+      "removable": { "type": "boolean" },
+      "storyLocked": { "type": "boolean" }
+    }
+  }
+}

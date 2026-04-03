@@ -1,0 +1,8 @@
+{
+  "_description": "ストーリーフラグ一覧（ライター向けリファレンス）。ゲーム中に setFlags で設定し、condition で参照する。",
+  "flags": {
+    "talked_to_king": { "type": "boolean", "description": "王様に話しかけた" },
+    "chapter_prologue_complete": { "type": "boolean", "description": "序章クリア" },
+    "boss_defeated": { "type": "boolean", "description": "ボスを倒した" }
+  }
+}

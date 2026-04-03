@@ -1,0 +1,23 @@
+{
+  "name": "claude-code-sample-rpg",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "validate": "npx tsx tools/validate-content.ts"
+  },
+  "dependencies": {
+    "howler": "^2.2.4",
+    "pixi.js": "^8.6.6"
+  },
+  "devDependencies": {
+    "@types/howler": "^2.2.12",
+    "@types/node": "^25.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.3.1"
+  }
+}
