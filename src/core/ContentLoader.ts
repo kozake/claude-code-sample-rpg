@@ -32,7 +32,8 @@ export class ContentLoader {
 
   async loadJson<T>(path: string): Promise<T | null> {
     try {
-      const res = await fetch(path);
+      const url = path.startsWith('/') ? path : `/content/${path}`;
+      const res = await fetch(url);
       if (!res.ok) return null;
       return await res.json();
     } catch {

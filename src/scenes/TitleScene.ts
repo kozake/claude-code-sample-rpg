@@ -1,6 +1,9 @@
 import { Graphics, Text, TextStyle, Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, COLORS } from '../constants';
+import { FieldScene } from './FieldScene';
+import { SaveSlotScene } from './SaveSlotScene';
+import { SaveManager } from '../systems/SaveManager';
 import type { Game } from '../Game';
 
 const MENU_ITEMS = ['はじめから', 'つづきから', 'ぼうけんのしょをけす'] as const;
@@ -202,25 +205,50 @@ export class TitleScene extends Scene {
 
     switch (index) {
       case 0:
-        // はじめから → Phase 2 以降で CutsceneScene(opening) に遷移
-        console.log('はじめから selected');
+        // はじめから → フィールドへ（後でオープニングカットシーンを挟む）
         this.blinkSelection(index, () => {
-          // TODO: CutsceneScene → FieldScene
-          this.inputEnabled = true;
+          const field = new FieldScene(this.game, 'world');
+          this.game.scenes.switchTo(field);
         });
         break;
       case 1:
-        // つづきから → Phase 2 以降で SaveSlotScene に遷移
-        console.log('つづきから selected');
+        // つづきから → セーブスロット選択（ロードモード）
         this.blinkSelection(index, () => {
-          this.inputEnabled = true;
+          const loadScene = new SaveSlotScene(
+            this.game,
+            'load',
+            (slotId) => {
+              const saveManager = new SaveManager(this.game);
+              const data = saveManager.load(slotId);
+              if (data) {
+                this.game.storyFlags = data.storyFlags;
+                const field = new FieldScene(this.game, data.currentMap, data.playerPosition.x, data.playerPosition.y);
+                this.game.scenes.switchTo(field);
+              }
+            },
+            () => {
+              this.game.scenes.switchTo(new TitleScene(this.game));
+            }
+          );
+          this.game.scenes.switchTo(loadScene);
         });
         break;
       case 2:
-        // ぼうけんのしょをけす → Phase 2 以降で SaveSlotScene(delete mode)
-        console.log('ぼうけんのしょをけす selected');
+        // ぼうけんのしょをけす → セーブスロット選択（削除モード）
         this.blinkSelection(index, () => {
-          this.inputEnabled = true;
+          const deleteScene = new SaveSlotScene(
+            this.game,
+            'delete',
+            (slotId) => {
+              const saveManager = new SaveManager(this.game);
+              saveManager.delete(slotId);
+              this.game.scenes.switchTo(new TitleScene(this.game));
+            },
+            () => {
+              this.game.scenes.switchTo(new TitleScene(this.game));
+            }
+          );
+          this.game.scenes.switchTo(deleteScene);
         });
         break;
     }

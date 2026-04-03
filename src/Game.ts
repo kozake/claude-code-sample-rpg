@@ -2,11 +2,18 @@ import { Application } from 'pixi.js';
 import { GAME_WIDTH, GAME_HEIGHT } from './constants';
 import { EventBus } from './core/EventBus';
 import { SceneManager } from './core/SceneManager';
+import { ContentLoader } from './core/ContentLoader';
+import { InputManager } from './systems/InputManager';
 
 export class Game {
   readonly app: Application;
   readonly events = new EventBus();
   readonly scenes: SceneManager;
+  readonly content = new ContentLoader();
+  readonly input = new InputManager();
+
+  /** ストーリーフラグ（セーブ/ロード対象） */
+  storyFlags: Record<string, boolean | number | string> = {};
 
   private constructor(app: Application) {
     this.app = app;
@@ -27,6 +34,7 @@ export class Game {
     });
 
     const game = new Game(app);
+    await game.content.loadInitial();
     game.setupScaling();
     game.startGameLoop();
 
