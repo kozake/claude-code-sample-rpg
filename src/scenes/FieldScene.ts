@@ -12,8 +12,9 @@ import { MenuScene } from './MenuScene';
 import { StatusScene } from './StatusScene';
 import { ItemScene } from './ItemScene';
 import { EquipScene } from './EquipScene';
+import { BattleScene } from './BattleScene';
 import type { Game } from '../Game';
-import type { MapData } from '../data/types';
+import type { MapData, EnemyData, EnemyGroupData } from '../data/types';
 
 /**
  * フィールドシーン
@@ -41,6 +42,9 @@ export class FieldScene extends Scene {
   private mapId: string;
   private startX?: number;
   private startY?: number;
+  private lastStepCount = 0;
+  private enemyDataCache: EnemyData[] | null = null;
+  private groupDataCache: EnemyGroupData[] | null = null;
 
   constructor(game: Game, mapId: string, startX?: number, startY?: number) {
     super(game);
@@ -121,6 +125,14 @@ export class FieldScene extends Scene {
 
     // 移動完了時のイベントチェック
     if (!this.player.isMoving) {
+      // エンカウント判定（歩数が増えた時のみ）
+      if (this.player.stepCount > this.lastStepCount) {
+        this.lastStepCount = this.player.stepCount;
+        if (this.checkEncounter()) {
+          input.resetOneShot();
+          return;
+        }
+      }
       this.checkWarps();
       this.checkEvents();
     }
@@ -232,6 +244,63 @@ export class FieldScene extends Scene {
         return;
       }
     }
+  }
+
+  /** ランダムエンカウント判定 */
+  private checkEncounter(): boolean {
+    if (!this.mapData?.encounterRate || !this.mapData.encounters) return false;
+
+    // encounterRate歩に1回エンカウント（確率: 1/encounterRate）
+    if (Math.random() * this.mapData.encounterRate >= 1) return false;
+
+    // 重み付きランダムでグループ選択
+    const encounters = this.mapData.encounters;
+    const totalWeight = encounters.reduce((sum, e) => sum + e.weight, 0);
+    let roll = Math.random() * totalWeight;
+    let selectedGroupId = encounters[0].groupId;
+    for (const enc of encounters) {
+      roll -= enc.weight;
+      if (roll <= 0) {
+        selectedGroupId = enc.groupId;
+        break;
+      }
+    }
+
+    this.startBattle(selectedGroupId);
+    return true;
+  }
+
+  private async startBattle(groupId: string): Promise<void> {
+    // 敵データの遅延読み込み
+    if (!this.enemyDataCache) {
+      this.enemyDataCache = await this.game.content.loadJson<EnemyData[]>('enemies/enemies.json') ?? [];
+    }
+    if (!this.groupDataCache) {
+      this.groupDataCache = await this.game.content.loadJson<EnemyGroupData[]>('enemies/groups.json') ?? [];
+    }
+
+    const group = this.groupDataCache.find((g) => g.id === groupId);
+    if (!group) return;
+
+    // グループから敵リストを組み立て
+    const enemies: EnemyData[] = [];
+    for (const entry of group.enemies) {
+      const data = this.enemyDataCache.find((e) => e.id === entry.enemyId);
+      if (data) {
+        for (let i = 0; i < entry.count; i++) {
+          enemies.push({ ...data });
+        }
+      }
+    }
+
+    if (enemies.length === 0) return;
+
+    const battleScene = new BattleScene(this.game, enemies, (victory) => {
+      // 戦闘後: フィールドに戻る
+      const field = new FieldScene(this.game, this.mapId, this.player.tileX, this.player.tileY);
+      this.game.scenes.switchTo(field);
+    });
+    this.game.scenes.switchTo(battleScene);
   }
 
   onExit(): void {

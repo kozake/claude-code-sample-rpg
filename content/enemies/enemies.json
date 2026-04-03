@@ -1,0 +1,56 @@
+[
+  {
+    "id": "slime",
+    "name": "スライム",
+    "hp": 8,
+    "attack": 5,
+    "defense": 3,
+    "speed": 3,
+    "exp": 2,
+    "gold": 3,
+    "sprite": "slime",
+    "skills": [
+      { "type": "attack", "weight": 100 }
+    ],
+    "fleeResistance": 10,
+    "criticalRate": 0,
+    "dodgeRate": 2
+  },
+  {
+    "id": "bat",
+    "name": "おおこうもり",
+    "hp": 12,
+    "attack": 8,
+    "defense": 4,
+    "speed": 8,
+    "exp": 4,
+    "gold": 5,
+    "sprite": "bat",
+    "skills": [
+      { "type": "attack", "weight": 80 },
+      { "type": "nothing", "weight": 20 }
+    ],
+    "fleeResistance": 20,
+    "criticalRate": 2,
+    "dodgeRate": 8
+  },
+  {
+    "id": "skeleton",
+    "name": "がいこつ",
+    "hp": 20,
+    "attack": 12,
+    "defense": 8,
+    "speed": 5,
+    "exp": 8,
+    "gold": 10,
+    "sprite": "skeleton",
+    "skills": [
+      { "type": "attack", "weight": 70 },
+      { "type": "guard", "weight": 30, "hpThreshold": 0.3 }
+    ],
+    "fleeResistance": 30,
+    "criticalRate": 4,
+    "dodgeRate": 3,
+    "dropItem": { "id": "herb", "rate": 0.25 }
+  }
+]
