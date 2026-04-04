@@ -2,9 +2,11 @@ import { Graphics, Text, TextStyle, Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { GAME_WIDTH, GAME_HEIGHT, FONT_FAMILY, COLORS } from '../constants';
 import { FieldScene } from './FieldScene';
+import { CutsceneScene } from './CutsceneScene';
 import { SaveSlotScene } from './SaveSlotScene';
 import { SaveManager } from '../systems/SaveManager';
 import type { Game } from '../Game';
+import type { CutsceneData } from '../data/types';
 
 const MENU_ITEMS = ['はじめから', 'つづきから', 'ぼうけんのしょをけす'] as const;
 
@@ -205,13 +207,25 @@ export class TitleScene extends Scene {
 
     switch (index) {
       case 0:
-        // はじめから → パーティ初期化 → フィールドへ
-        this.blinkSelection(index, () => {
+        // はじめから → パーティ初期化 → オープニングカットシーン → フィールドへ
+        this.blinkSelection(index, async () => {
           const members = this.game.content.getPartyMembers();
           this.game.state.initNewGame(members);
           this.game.storyFlags = {};
-          const field = new FieldScene(this.game, 'world');
-          this.game.scenes.switchTo(field);
+
+          // オープニングカットシーン読み込み
+          const cutsceneData = await this.game.content.loadJson<CutsceneData>('story/cutscenes/opening.json');
+          if (cutsceneData) {
+            const cutscene = new CutsceneScene(this.game, cutsceneData, () => {
+              const field = new FieldScene(this.game, 'world');
+              this.game.scenes.switchTo(field);
+            });
+            this.game.scenes.switchTo(cutscene);
+          } else {
+            // カットシーンデータがなければ直接フィールドへ
+            const field = new FieldScene(this.game, 'world');
+            this.game.scenes.switchTo(field);
+          }
         });
         break;
       case 1:

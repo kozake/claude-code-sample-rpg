@@ -1,0 +1,61 @@
+{
+  "id": "opening",
+  "steps": [
+    {
+      "type": "fadeOut",
+      "duration": 1
+    },
+    {
+      "type": "message",
+      "text": [
+        "むかしむかし...",
+        "このせかいは へいわで ゆたかな くにでした。"
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "しかし ある日...",
+        "やみの まおうが めざめ",
+        "せかいは きょうふに つつまれました。"
+      ]
+    },
+    {
+      "type": "nameInput"
+    },
+    {
+      "type": "fadeIn",
+      "duration": 30
+    },
+    {
+      "type": "message",
+      "text": [
+        "おお {heroName}よ！",
+        "よくぞ めざめた！"
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "おまえは このせかいを すくう",
+        "ゆうしゃの けっとうを ひく ものだ。"
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "さあ たびだつのだ！",
+        "せかいに へいわを とりもどすために！"
+      ]
+    },
+    {
+      "type": "setFlag",
+      "flagKey": "opening_complete",
+      "flagValue": true
+    },
+    {
+      "type": "fadeOut",
+      "duration": 30
+    }
+  ]
+}
