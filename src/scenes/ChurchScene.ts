@@ -79,10 +79,11 @@ export class ChurchScene extends Scene {
     const input = this.game.input;
     input.update();
 
-    if (input.direction === 'up' && this.cursorIndex > 0) {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.cursorIndex > 0) {
       this.cursorIndex--;
       this.updateCursor();
-    } else if (input.direction === 'down' && this.cursorIndex < SERVICES.length - 1) {
+    } else if (dir === 'down' && this.cursorIndex < SERVICES.length - 1) {
       this.cursorIndex++;
       this.updateCursor();
     }

@@ -275,11 +275,12 @@ export class BattleScene extends Scene {
     input.resetOneShot();
   }
 
-  private handleCommandInput(input: { direction: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
-    if (input.direction === 'up' && this.commandCursor > 0) {
+  private handleCommandInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.commandCursor > 0) {
       this.commandCursor--;
       this.drawCommandWindow();
-    } else if (input.direction === 'down' && this.commandCursor < COMMANDS.length - 1) {
+    } else if (dir === 'down' && this.commandCursor < COMMANDS.length - 1) {
       this.commandCursor++;
       this.drawCommandWindow();
     }
@@ -315,15 +316,16 @@ export class BattleScene extends Scene {
     }
   }
 
-  private handleTargetInput(input: { direction: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+  private handleTargetInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
     const aliveEnemies = this.battleState.enemies
       .map((e, i) => ({ enemy: e, index: i }))
       .filter((e) => e.enemy.isAlive);
 
-    if (input.direction === 'up' && this.targetCursor > 0) {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.targetCursor > 0) {
       this.targetCursor--;
       this.drawTargetSelect();
-    } else if (input.direction === 'down' && this.targetCursor < aliveEnemies.length - 1) {
+    } else if (dir === 'down' && this.targetCursor < aliveEnemies.length - 1) {
       this.targetCursor++;
       this.drawTargetSelect();
     }

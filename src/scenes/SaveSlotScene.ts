@@ -154,10 +154,11 @@ export class SaveSlotScene extends Scene {
     const input = this.game.input;
     input.update();
 
-    if (input.direction === 'up' && this.cursorIndex > 0) {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.cursorIndex > 0) {
       this.cursorIndex--;
       this.updateCursorPosition();
-    } else if (input.direction === 'down' && this.cursorIndex < 2) {
+    } else if (dir === 'down' && this.cursorIndex < 2) {
       this.cursorIndex++;
       this.updateCursorPosition();
     }
