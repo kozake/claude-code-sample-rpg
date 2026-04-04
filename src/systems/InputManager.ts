@@ -7,6 +7,13 @@ export class InputManager {
   private _cancelPressed = false;
   private _menuPressed = false;
 
+  // 方向入力のワンショット化（長押しリピート対応）
+  private _lastDirection: Direction | null = null;
+  private _dirHoldTime = 0;
+  private _dirMoved = false;
+  private static readonly DIR_INITIAL_DELAY = 12; // 初回リピートまでのフレーム数
+  private static readonly DIR_REPEAT_DELAY = 6;   // リピート間隔フレーム数
+
   // タッチ入力（DPad等から設定される）
   private touchDirection: Direction | null = null;
   private touchAction = false;
@@ -71,6 +78,37 @@ export class InputManager {
   // --- ゲッター ---
   get direction(): Direction | null {
     return this._direction;
+  }
+
+  /** 方向入力のワンショット版（長押しリピート対応）。メニューカーソル移動に使用 */
+  get directionJustPressed(): Direction | null {
+    const dir = this._direction;
+    if (dir === null) {
+      this._lastDirection = null;
+      this._dirHoldTime = 0;
+      this._dirMoved = false;
+      return null;
+    }
+    if (dir !== this._lastDirection) {
+      // 新しい方向：即座に移動
+      this._lastDirection = dir;
+      this._dirHoldTime = 0;
+      this._dirMoved = true;
+      return dir;
+    }
+    // 同じ方向を押し続けている
+    this._dirHoldTime++;
+    if (!this._dirMoved) {
+      this._dirMoved = true;
+      return dir;
+    }
+    if (this._dirHoldTime >= InputManager.DIR_INITIAL_DELAY) {
+      const elapsed = this._dirHoldTime - InputManager.DIR_INITIAL_DELAY;
+      if (elapsed % InputManager.DIR_REPEAT_DELAY === 0) {
+        return dir;
+      }
+    }
+    return null;
   }
 
   get isActionPressed(): boolean {

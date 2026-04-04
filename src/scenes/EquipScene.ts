@@ -161,10 +161,11 @@ export class EquipScene extends Scene {
 
     const max = this.getMaxIndex();
 
-    if (input.direction === 'up' && this.cursorIndex > 0) {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.cursorIndex > 0) {
       this.cursorIndex--;
       this.updateCursor();
-    } else if (input.direction === 'down' && this.cursorIndex < max) {
+    } else if (dir === 'down' && this.cursorIndex < max) {
       this.cursorIndex++;
       this.updateCursor();
     }

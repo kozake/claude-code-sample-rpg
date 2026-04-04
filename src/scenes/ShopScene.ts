@@ -134,10 +134,11 @@ export class ShopScene extends Scene {
 
     const maxIdx = this.phase === 'main' ? 2 : this.items.length - 1;
 
-    if (input.direction === 'up' && this.cursorIndex > 0) {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.cursorIndex > 0) {
       this.cursorIndex--;
       this.updateCursor();
-    } else if (input.direction === 'down' && this.cursorIndex < maxIdx) {
+    } else if (dir === 'down' && this.cursorIndex < maxIdx) {
       this.cursorIndex++;
       this.updateCursor();
     }
