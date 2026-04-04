@@ -40,6 +40,13 @@ export class NameInputScene extends Scene {
   private onComplete: (name: string) => void;
   private charTexts: Text[][] = [];
 
+  // 方向入力のワンショット化（長押しリピート対応）
+  private lastDirection: string | null = null;
+  private dirHoldTime = 0;
+  private dirMoved = false;
+  private static readonly DIR_INITIAL_DELAY = 12; // 初回リピートまでのフレーム数
+  private static readonly DIR_REPEAT_DELAY = 6;   // リピート間隔フレーム数
+
   constructor(game: Game, onComplete: (name: string) => void) {
     super(game);
     this.onComplete = onComplete;
@@ -128,6 +135,8 @@ export class NameInputScene extends Scene {
     const y = tableY + this.cursorY * CELL_H;
 
     this.cursorGraphic.roundRect(x + 1, y + 1, w - 2, CELL_H - 2, 2)
+      .fill({ color: COLORS.CURSOR, alpha: 0.3 });
+    this.cursorGraphic.roundRect(x + 1, y + 1, w - 2, CELL_H - 2, 2)
       .stroke({ color: COLORS.CURSOR, width: 2, alpha: 0.8 });
   }
 
@@ -139,26 +148,59 @@ export class NameInputScene extends Scene {
     this.nameText.text = display;
   }
 
+  /** 方向入力をワンショット化（長押しでリピート） */
+  private shouldMove(dir: string | null): boolean {
+    if (dir === null) {
+      this.lastDirection = null;
+      this.dirHoldTime = 0;
+      this.dirMoved = false;
+      return false;
+    }
+    if (dir !== this.lastDirection) {
+      // 新しい方向：即座に移動
+      this.lastDirection = dir;
+      this.dirHoldTime = 0;
+      this.dirMoved = true;
+      return true;
+    }
+    // 同じ方向を押し続けている
+    this.dirHoldTime++;
+    if (!this.dirMoved) {
+      this.dirMoved = true;
+      return true;
+    }
+    if (this.dirHoldTime >= NameInputScene.DIR_INITIAL_DELAY) {
+      const elapsed = this.dirHoldTime - NameInputScene.DIR_INITIAL_DELAY;
+      if (elapsed % NameInputScene.DIR_REPEAT_DELAY === 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   update(_delta: number): void {
     const input = this.game.input;
     input.update();
 
-    if (input.direction === 'up') {
-      this.cursorY = (this.cursorY - 1 + ROWS) % ROWS;
-      this.skipEmpty();
-      this.updateCursor();
-    } else if (input.direction === 'down') {
-      this.cursorY = (this.cursorY + 1) % ROWS;
-      this.skipEmpty();
-      this.updateCursor();
-    } else if (input.direction === 'left') {
-      this.cursorX = (this.cursorX - 1 + COLS) % COLS;
-      this.skipEmpty();
-      this.updateCursor();
-    } else if (input.direction === 'right') {
-      this.cursorX = (this.cursorX + 1) % COLS;
-      this.skipEmpty();
-      this.updateCursor();
+    const dir = input.direction;
+    if (this.shouldMove(dir)) {
+      if (dir === 'up') {
+        this.cursorY = (this.cursorY - 1 + ROWS) % ROWS;
+        this.skipEmpty();
+        this.updateCursor();
+      } else if (dir === 'down') {
+        this.cursorY = (this.cursorY + 1) % ROWS;
+        this.skipEmpty();
+        this.updateCursor();
+      } else if (dir === 'left') {
+        this.cursorX = (this.cursorX - 1 + COLS) % COLS;
+        this.skipEmpty();
+        this.updateCursor();
+      } else if (dir === 'right') {
+        this.cursorX = (this.cursorX + 1) % COLS;
+        this.skipEmpty();
+        this.updateCursor();
+      }
     }
 
     if (input.isActionPressed) {
