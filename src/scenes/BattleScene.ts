@@ -43,6 +43,8 @@ export class BattleScene extends Scene {
   }
 
   onEnter(): void {
+    this.game.audio.playBgm('battle');
+
     this.drawBackground();
     this.drawEnemies();
     this.drawPartyStatus();

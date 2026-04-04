@@ -4,6 +4,7 @@ import { TileMap } from '../map/TileMap';
 import { Camera } from '../map/Camera';
 import { CollisionMap } from '../map/CollisionMap';
 import { Player } from '../entities/Player';
+import { NpcEntity } from '../entities/NpcEntity';
 import { DPad } from '../ui/DPad';
 import { ActionButton } from '../ui/ActionButton';
 import { MenuButton } from '../ui/MenuButton';
@@ -51,6 +52,7 @@ export class FieldScene extends Scene {
   private enemyDataCache: EnemyData[] | null = null;
   private groupDataCache: EnemyGroupData[] | null = null;
   private npcDataCache: Map<string, NPCData> = new Map();
+  private npcEntities: NpcEntity[] = [];
   private dialogueManager!: DialogueManager;
   private choiceWindow = new ChoiceWindow();
 
@@ -87,11 +89,17 @@ export class FieldScene extends Scene {
     this.camera.follow(this.player.centerX, this.player.centerY);
     this.camera.applyTo(this.tileMap.container);
 
+    // BGM再生
+    if (this.mapData.bgm) {
+      this.game.audio.playBgm(this.mapData.bgm);
+    }
+
     // DialogueManager初期化
     this.dialogueManager = new DialogueManager(this.game);
 
     // NPCデータ読み込み
     await this.loadNpcData();
+    this.spawnNpcEntities();
 
     // UIオーバーレイ（カメラの影響を受けない）
     this.dpad = new DPad(this.game.input);
@@ -122,9 +130,24 @@ export class FieldScene extends Scene {
     }
   }
 
+  private spawnNpcEntities(): void {
+    if (!this.mapData?.npcs) return;
+    for (const npcRef of this.mapData.npcs) {
+      const npcData = this.npcDataCache.get(npcRef.id);
+      const sprite = npcData?.sprite;
+      const dir = (npcRef.direction ?? 'down') as 'up' | 'down' | 'left' | 'right';
+      const npc = new NpcEntity(npcRef.id, npcRef.x, npcRef.y, dir, npcRef.wanderRadius ?? 0, sprite);
+      this.npcEntities.push(npc);
+      this.tileMap.container.addChild(npc.container);
+    }
+  }
+
   update(delta: number): void {
     const input = this.game.input;
     input.update();
+
+    // プレイ時間計測
+    this.game.state.playTime += delta / 60; // 60fps基準で秒換算
 
     // オーバーレイ（メニュー等）が開いている場合
     if (this.overlayScene) {
@@ -160,6 +183,11 @@ export class FieldScene extends Scene {
     // プレイヤー移動
     this.player.handleInput(input, this.collision);
     this.player.update(delta);
+
+    // NPC更新（ワンダリング）
+    for (const npc of this.npcEntities) {
+      npc.updateWander(delta, (x, y) => this.collision.isPassable(x, y));
+    }
 
     // 移動完了時のイベントチェック
     if (!this.player.isMoving) {

@@ -158,6 +158,15 @@ export class TitleScene extends Scene {
   }
 
   private setupInput(): void {
+    // 最初のタップ/キー操作でオーディオアンロック
+    const unlockAudio = () => {
+      this.game.audio.unlock();
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+
     // キーボード入力
     const onKeyDown = (e: KeyboardEvent) => {
       if (!this.inputEnabled) return;
