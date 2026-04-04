@@ -37,8 +37,8 @@ export class CutsceneScene extends Scene {
     bg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill(COLORS.BLACK);
     this.container.addChild(bg);
 
-    this.container.addChild(this.messageWindow.container);
     this.container.addChild(this.fadeOverlay);
+    this.container.addChild(this.messageWindow.container);
 
     this.executeCurrentStep();
   }

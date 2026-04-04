@@ -2,10 +2,6 @@
   "id": "opening",
   "steps": [
     {
-      "type": "fadeOut",
-      "duration": 1
-    },
-    {
       "type": "message",
       "text": [
         "むかしむかし...",
