@@ -1,6 +1,8 @@
 import { Graphics, Text, TextStyle, Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { Window } from '../ui/Window';
+import { DPad } from '../ui/DPad';
+import { ActionButton } from '../ui/ActionButton';
 import { BattleState, type ActionResult } from '../battle/BattleState';
 import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
@@ -49,6 +51,12 @@ export class BattleScene extends Scene {
     this.drawEnemies();
     this.drawPartyStatus();
     this.drawMessageWindow();
+
+    // タッチUI（DPad + A/Bボタン）
+    const dpad = new DPad(this.game.input);
+    const actionBtn = new ActionButton(this.game.input);
+    this.container.addChild(dpad.container);
+    this.container.addChild(actionBtn.container);
 
     // 開始メッセージ
     const enemyNames = this.battleState.enemies.map((e) => e.data.name).join('と ');

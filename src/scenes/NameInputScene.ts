@@ -1,6 +1,8 @@
 import { Graphics, Text, TextStyle, Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { Window } from '../ui/Window';
+import { DPad } from '../ui/DPad';
+import { ActionButton } from '../ui/ActionButton';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
 
@@ -105,6 +107,12 @@ export class NameInputScene extends Scene {
     this.cursorGraphic = new Graphics();
     this.updateCursor();
     this.container.addChild(this.cursorGraphic);
+
+    // タッチUI（DPad + A/Bボタン）
+    const dpad = new DPad(this.game.input);
+    const actionBtn = new ActionButton(this.game.input);
+    this.container.addChild(dpad.container);
+    this.container.addChild(actionBtn.container);
 
     this.updateNameDisplay();
   }

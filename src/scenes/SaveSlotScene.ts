@@ -1,5 +1,7 @@
 import { Graphics, Text } from 'pixi.js';
 import { Scene } from '../core/Scene';
+import { DPad } from '../ui/DPad';
+import { ActionButton } from '../ui/ActionButton';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import { SaveManager, type SaveSlotSummary } from '../systems/SaveManager';
 import type { Game } from '../Game';
@@ -30,6 +32,12 @@ export class SaveSlotScene extends Scene {
   onEnter(): void {
     this.slotSummaries = this.saveManager.getSlotSummaries();
     this.draw();
+
+    // タッチUI（DPad + A/Bボタン）
+    const dpad = new DPad(this.game.input);
+    const actionBtn = new ActionButton(this.game.input);
+    this.container.addChild(dpad.container);
+    this.container.addChild(actionBtn.container);
   }
 
   private draw(): void {

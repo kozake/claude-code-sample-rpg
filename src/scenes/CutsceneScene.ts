@@ -1,6 +1,7 @@
 import { Graphics, Text, TextStyle, Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { MessageWindow } from '../ui/MessageWindow';
+import { ActionButton } from '../ui/ActionButton';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import { NameInputScene } from './NameInputScene';
 import type { Game } from '../Game';
@@ -32,13 +33,19 @@ export class CutsceneScene extends Scene {
   }
 
   onEnter(): void {
-    // 背景（黒）
+    // 背景（黒）- タップで決定入力（スマホ対応）
     const bg = new Graphics();
     bg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill(COLORS.BLACK);
+    bg.eventMode = 'static';
+    bg.on('pointerdown', () => this.game.input.setTouchAction());
     this.container.addChild(bg);
 
     this.container.addChild(this.fadeOverlay);
     this.container.addChild(this.messageWindow.container);
+
+    // タッチUI（Aボタン表示）
+    const actionBtn = new ActionButton(this.game.input);
+    this.container.addChild(actionBtn.container);
 
     this.executeCurrentStep();
   }
