@@ -2,6 +2,7 @@ import { Graphics, Text, TextStyle, Container } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { Window } from '../ui/Window';
 import { BattleState, type ActionResult } from '../battle/BattleState';
+import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
 import type { EnemyData, PartyMember } from '../data/types';
@@ -500,6 +501,14 @@ export class BattleScene extends Scene {
         this.game.state.active[i].hp = battleMember.hp;
         this.game.state.active[i].mp = battleMember.mp;
         this.game.state.active[i].exp = battleMember.exp;
+      }
+    }
+
+    // レベルアップチェック
+    for (const member of this.game.state.active) {
+      const results = this.game.levelUp.processAllLevelUps(member);
+      for (const result of results) {
+        messages.push(...LevelUpSystem.generateMessages(result));
       }
     }
 
