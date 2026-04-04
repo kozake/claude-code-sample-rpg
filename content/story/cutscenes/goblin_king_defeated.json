@@ -1,0 +1,60 @@
+{
+  "id": "goblin_king_defeated",
+  "steps": [
+    {
+      "type": "fadeIn",
+      "duration": 30
+    },
+    {
+      "type": "message",
+      "text": [
+        "ゴブリンキングを たおした！"
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "ゴブリンキングの うしろに",
+        "ふしぎな くろい クリスタルが あった..."
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "クリスタルに ちかづくと...",
+        "とつぜん はげしい ひかりを はなち",
+        "こなごなに くだけちった！"
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "のこされた やみのかけらを てにいれた！"
+      ]
+    },
+    {
+      "type": "setFlag",
+      "flagKey": "dark_crystal_discovered",
+      "flagValue": true
+    },
+    {
+      "type": "message",
+      "text": [
+        "この クリスタルが",
+        "ゴブリンたちを あやつっていたのか..."
+      ]
+    },
+    {
+      "type": "message",
+      "text": [
+        "いったい だれが こんな ものを",
+        "ここに おいたのだろう...",
+        "いやな よかんが する..."
+      ]
+    },
+    {
+      "type": "fadeOut",
+      "duration": 30
+    }
+  ]
+}

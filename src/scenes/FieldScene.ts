@@ -19,8 +19,9 @@ import { InnScene } from './InnScene';
 import { ChurchScene } from './ChurchScene';
 import { ChoiceWindow } from '../ui/ChoiceWindow';
 import { DialogueManager } from '../systems/DialogueManager';
+import { CutsceneScene } from './CutsceneScene';
 import type { Game } from '../Game';
-import type { MapData, EnemyData, EnemyGroupData, NPCData } from '../data/types';
+import type { MapData, MapEvent, EnemyData, EnemyGroupData, NPCData, CutsceneData } from '../data/types';
 
 /**
  * フィールドシーン
@@ -259,6 +260,13 @@ export class FieldScene extends Scene {
 
     for (const warp of this.mapData.warps) {
       if (this.player.tileX === warp.x && this.player.tileY === warp.y) {
+        // 条件チェック
+        if (warp.condition && !this.dialogueManager.evaluateCondition(warp.condition)) {
+          if (warp.blockedMessage && !this.messageWindow.isVisible) {
+            this.messageWindow.show([warp.blockedMessage]);
+          }
+          return;
+        }
         const newScene = new FieldScene(this.game, warp.toMap, warp.toX, warp.toY);
         this.game.scenes.switchTo(newScene);
         return;
@@ -275,9 +283,37 @@ export class FieldScene extends Scene {
       // onceFlag チェック
       if (event.onceFlag && this.game.storyFlags[event.onceFlag]) continue;
 
+      // condition チェック
+      if (event.condition && !this.dialogueManager.evaluateCondition(event.condition)) continue;
+
+      // ボス戦イベント
+      if (event.action.battle) {
+        if (event.action.message) {
+          this.messageWindow.show(event.action.message, () => {
+            this.startBossBattle(event);
+          });
+        } else {
+          this.startBossBattle(event);
+        }
+        return;
+      }
+
+      // カットシーンイベント
+      if (event.action.cutscene && !event.action.battle) {
+        this.startEventCutscene(event);
+        return;
+      }
+
       // アイテム取得
       if (event.action.giveItem) {
         this.game.state.addItem(event.action.giveItem.id, event.action.giveItem.count);
+      }
+
+      // フラグ設定
+      if (event.action.setFlags) {
+        for (const [key, value] of Object.entries(event.action.setFlags)) {
+          this.game.storyFlags[key] = value;
+        }
       }
 
       // メッセージ表示
@@ -287,8 +323,98 @@ export class FieldScene extends Scene {
             this.game.storyFlags[event.onceFlag!] = true;
           }
         });
+      } else if (event.onceFlag) {
+        this.game.storyFlags[event.onceFlag] = true;
       }
     }
+  }
+
+  /** ボス戦イベント開始 */
+  private async startBossBattle(event: MapEvent): Promise<void> {
+    if (!this.enemyDataCache) {
+      this.enemyDataCache = await this.game.content.loadJson<EnemyData[]>('enemies/enemies.json') ?? [];
+    }
+    if (!this.groupDataCache) {
+      this.groupDataCache = await this.game.content.loadJson<EnemyGroupData[]>('enemies/groups.json') ?? [];
+    }
+
+    const group = this.groupDataCache.find((g) => g.id === event.action.battle);
+    if (!group) return;
+
+    const enemies: EnemyData[] = [];
+    for (const entry of group.enemies) {
+      const data = this.enemyDataCache.find((e) => e.id === entry.enemyId);
+      if (data) {
+        for (let i = 0; i < entry.count; i++) {
+          enemies.push({ ...data });
+        }
+      }
+    }
+    if (enemies.length === 0) return;
+
+    const px = this.player.tileX;
+    const py = this.player.tileY;
+
+    const battleScene = new BattleScene(this.game, enemies, async (victory) => {
+      if (victory) {
+        // onceFlag設定
+        if (event.onceFlag) {
+          this.game.storyFlags[event.onceFlag] = true;
+        }
+        // フラグ設定
+        if (event.action.setFlags) {
+          for (const [key, value] of Object.entries(event.action.setFlags)) {
+            this.game.storyFlags[key] = value;
+          }
+        }
+        // アイテム付与
+        if (event.action.giveItem) {
+          this.game.state.addItem(event.action.giveItem.id, event.action.giveItem.count);
+        }
+        // 勝利後カットシーン
+        if (event.action.cutscene) {
+          const cutsceneData = await this.game.content.loadJson<CutsceneData>(
+            `story/cutscenes/${event.action.cutscene}.json`
+          );
+          if (cutsceneData) {
+            const cutscene = new CutsceneScene(this.game, cutsceneData, () => {
+              const field = new FieldScene(this.game, this.mapId, px, py);
+              this.game.scenes.switchTo(field);
+            });
+            this.game.scenes.switchTo(cutscene);
+            return;
+          }
+        }
+      }
+      const field = new FieldScene(this.game, this.mapId, px, py);
+      this.game.scenes.switchTo(field);
+    });
+    this.game.scenes.switchTo(battleScene);
+  }
+
+  /** イベントカットシーン開始 */
+  private async startEventCutscene(event: MapEvent): Promise<void> {
+    const cutsceneData = await this.game.content.loadJson<CutsceneData>(
+      `story/cutscenes/${event.action.cutscene}.json`
+    );
+    if (!cutsceneData) return;
+
+    if (event.onceFlag) {
+      this.game.storyFlags[event.onceFlag] = true;
+    }
+    if (event.action.setFlags) {
+      for (const [key, value] of Object.entries(event.action.setFlags)) {
+        this.game.storyFlags[key] = value;
+      }
+    }
+
+    const px = this.player.tileX;
+    const py = this.player.tileY;
+    const cutscene = new CutsceneScene(this.game, cutsceneData, () => {
+      const field = new FieldScene(this.game, this.mapId, px, py);
+      this.game.scenes.switchTo(field);
+    });
+    this.game.scenes.switchTo(cutscene);
   }
 
   private checkInteraction(): void {

@@ -17,5 +17,30 @@
       { "enemyId": "skeleton", "count": 1 },
       { "enemyId": "slime", "count": 1 }
     ]
+  },
+  {
+    "id": "goblin_group",
+    "enemies": [
+      { "enemyId": "goblin", "count": 2 }
+    ]
+  },
+  {
+    "id": "goblin_archer_group",
+    "enemies": [
+      { "enemyId": "goblin", "count": 1 },
+      { "enemyId": "goblin_archer", "count": 1 }
+    ]
+  },
+  {
+    "id": "goblin_cave_group",
+    "enemies": [
+      { "enemyId": "goblin", "count": 3 }
+    ]
+  },
+  {
+    "id": "goblin_king_group",
+    "enemies": [
+      { "enemyId": "goblin_king", "count": 1 }
+    ]
   }
 ]

@@ -1,8 +1,17 @@
 {
   "_description": "ストーリーフラグ一覧（ライター向けリファレンス）。ゲーム中に setFlags で設定し、condition で参照する。",
   "flags": {
-    "talked_to_king": { "type": "boolean", "description": "王様に話しかけた" },
-    "chapter_prologue_complete": { "type": "boolean", "description": "序章クリア" },
-    "boss_defeated": { "type": "boolean", "description": "ボスを倒した" }
+    "opening_complete": { "type": "boolean", "description": "オープニング完了" },
+    "talked_elder": { "type": "boolean", "description": "長老に話した" },
+    "quest_goblin_cave_accepted": { "type": "boolean", "description": "ゴブリン洞窟クエスト受諾" },
+    "talked_wounded_soldier": { "type": "boolean", "description": "傷ついた兵士に話した" },
+    "talked_elna": { "type": "boolean", "description": "洞窟でエルナに話した" },
+    "goblin_king_defeated": { "type": "boolean", "description": "ゴブリンキングを倒した" },
+    "dark_crystal_discovered": { "type": "boolean", "description": "闇のクリスタルを発見した" },
+    "elna_joined": { "type": "boolean", "description": "エルナが仲間に加わった" },
+    "chapter_1_complete": { "type": "boolean", "description": "第1章クリア" },
+    "treasure_world_001": { "type": "boolean", "description": "ワールドマップ宝箱1" },
+    "treasure_cave_001": { "type": "boolean", "description": "洞窟宝箱1（やくそう）" },
+    "treasure_cave_002": { "type": "boolean", "description": "洞窟宝箱2（どうのつるぎ）" }
   }
 }

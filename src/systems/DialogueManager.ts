@@ -79,6 +79,23 @@ export class DialogueManager {
     }
   }
 
+  /** パーティメンバー追加 */
+  private addPartyMember(memberId: string): void {
+    // 既にパーティにいる場合はスキップ
+    if (this.game.state.allMembers.find((m) => m.id === memberId)) return;
+    // 離脱中メンバーは復帰
+    if (this.game.state.left.find((m) => m.id === memberId)) {
+      this.game.state.returnMember(memberId);
+      return;
+    }
+    // メンバーマスタから取得して追加
+    const allMembers = this.game.content.getPartyMembers();
+    const memberData = allMembers.find((m) => m.id === memberId);
+    if (memberData) {
+      this.game.state.addMember({ ...memberData, statusEffects: [] });
+    }
+  }
+
   /** 選択肢のアクション実行 */
   executeChoiceAction(choice: NPCChoice): void {
     const action = choice.action;
@@ -91,7 +108,7 @@ export class DialogueManager {
       this.game.state.addItem(action.giveItem.id, action.giveItem.count);
     }
     if (action.addPartyMember) {
-      // TODO: パーティメンバー追加ロジック
+      this.addPartyMember(action.addPartyMember);
     }
   }
 }

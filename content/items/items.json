@@ -50,5 +50,44 @@
     "effect": {},
     "price": 100,
     "maxStack": 1
+  },
+  {
+    "id": "leather_armor",
+    "name": "かわのよろい",
+    "description": "ぼうぎょりょく+4",
+    "type": "misc",
+    "consumable": false,
+    "usableInBattle": false,
+    "usableInField": false,
+    "target": "self",
+    "effect": {},
+    "price": 80,
+    "maxStack": 1
+  },
+  {
+    "id": "wooden_shield",
+    "name": "かわのたて",
+    "description": "ぼうぎょりょく+2",
+    "type": "misc",
+    "consumable": false,
+    "usableInBattle": false,
+    "usableInField": false,
+    "target": "self",
+    "effect": {},
+    "price": 40,
+    "maxStack": 1
+  },
+  {
+    "id": "dark_fragment",
+    "name": "やみのかけら",
+    "description": "ふしぎな やみの ちからを ひめた かけら",
+    "type": "key",
+    "consumable": false,
+    "usableInBattle": false,
+    "usableInField": false,
+    "target": "self",
+    "effect": {},
+    "price": 0,
+    "maxStack": 1
   }
 ]
