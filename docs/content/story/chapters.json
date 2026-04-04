@@ -1,0 +1,9 @@
+[
+  {
+    "id": "prologue",
+    "name": "序章 旅立ち",
+    "description": "魔王の脅威に立ち向かうため、勇者は旅に出る。",
+    "objectives": ["王様に話しかける", "町の外に出る"],
+    "completionFlag": "chapter_prologue_complete"
+  }
+]

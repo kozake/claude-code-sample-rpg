@@ -1,5 +1,7 @@
 import type { ChapterData, PartyMember } from '../data/types';
 
+const BASE = import.meta.env.BASE_URL;
+
 interface ContentIndex {
   chapters: ChapterData[];
   partyMembers: PartyMember[];
@@ -9,10 +11,8 @@ export class ContentLoader {
   private content: Partial<ContentIndex> = {};
 
   async loadInitial(): Promise<void> {
-    // 起動時は最低限（chapters, party）のみ読み込み
-    // マップ・NPC・敵は該当シーン進入時にオンデマンドロード
     try {
-      const membersRes = await fetch('/content/party/members.json');
+      const membersRes = await fetch(`${BASE}content/party/members.json`);
       if (membersRes.ok) {
         this.content.partyMembers = await membersRes.json();
       }
@@ -21,7 +21,7 @@ export class ContentLoader {
     }
 
     try {
-      const chaptersRes = await fetch('/content/story/chapters.json');
+      const chaptersRes = await fetch(`${BASE}content/story/chapters.json`);
       if (chaptersRes.ok) {
         this.content.chapters = await chaptersRes.json();
       }
@@ -32,7 +32,7 @@ export class ContentLoader {
 
   async loadJson<T>(path: string): Promise<T | null> {
     try {
-      const url = path.startsWith('/') ? path : `/content/${path}`;
+      const url = path.startsWith('http') ? path : `${BASE}content/${path}`;
       const res = await fetch(url);
       if (!res.ok) return null;
       return await res.json();

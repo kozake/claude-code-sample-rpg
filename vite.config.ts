@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
+  base: '/claude-code-sample-rpg/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -14,7 +15,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2020',
-    outDir: 'dist',
+    outDir: 'docs',
   },
   assetsInclude: ['**/*.json'],
 });

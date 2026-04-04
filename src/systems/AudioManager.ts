@@ -1,5 +1,7 @@
 import { Howl, Howler } from 'howler';
 
+const BASE = import.meta.env.BASE_URL;
+
 /**
  * オーディオ管理
  * - BGM再生（ループ、フェードイン/アウト）
@@ -82,7 +84,7 @@ export class AudioManager {
 
     // BGMファイルが存在する場合のみ生成
     const howl = new Howl({
-      src: [`/assets/audio/bgm/${id}.mp3`, `/assets/audio/bgm/${id}.ogg`],
+      src: [`${BASE}assets/audio/bgm/${id}.mp3`, `${BASE}assets/audio/bgm/${id}.ogg`],
       loop: true,
       volume: this.bgmVolume,
       preload: true,
@@ -99,7 +101,7 @@ export class AudioManager {
     if (this.seCache.has(id)) return this.seCache.get(id)!;
 
     const howl = new Howl({
-      src: [`/assets/audio/se/${id}.mp3`, `/assets/audio/se/${id}.ogg`],
+      src: [`${BASE}assets/audio/se/${id}.mp3`, `${BASE}assets/audio/se/${id}.ogg`],
       volume: this.seVolume,
       preload: true,
       onloaderror: () => {

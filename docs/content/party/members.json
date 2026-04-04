@@ -1,0 +1,30 @@
+[
+  {
+    "id": "hero",
+    "name": "ゆうしゃ",
+    "class": "hero",
+    "level": 1,
+    "hp": 15,
+    "maxHp": 15,
+    "mp": 0,
+    "maxMp": 0,
+    "attack": 5,
+    "defense": 5,
+    "speed": 5,
+    "exp": 0,
+    "equipment": {
+      "weapon": null,
+      "armor": null,
+      "shield": null,
+      "accessory": null
+    },
+    "spells": [],
+    "criticalRate": 4,
+    "dodgeRate": 2,
+    "statusEffects": [],
+    "sprite": "hero",
+    "joinedByDefault": true,
+    "removable": false,
+    "storyLocked": false
+  }
+]

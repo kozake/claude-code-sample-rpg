@@ -1,0 +1,21 @@
+[
+  {
+    "id": "slime_group",
+    "enemies": [
+      { "enemyId": "slime", "count": 2 }
+    ]
+  },
+  {
+    "id": "bat_group",
+    "enemies": [
+      { "enemyId": "bat", "count": 1 }
+    ]
+  },
+  {
+    "id": "skeleton_group",
+    "enemies": [
+      { "enemyId": "skeleton", "count": 1 },
+      { "enemyId": "slime", "count": 1 }
+    ]
+  }
+]

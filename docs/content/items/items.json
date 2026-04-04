@@ -1,0 +1,54 @@
+[
+  {
+    "id": "herb",
+    "name": "やくそう",
+    "description": "HPを30かいふくする",
+    "type": "heal",
+    "consumable": true,
+    "usableInBattle": true,
+    "usableInField": true,
+    "target": "oneAlly",
+    "effect": { "hp": 30 },
+    "price": 8,
+    "maxStack": 99
+  },
+  {
+    "id": "antidote",
+    "name": "どくけしそう",
+    "description": "どくを なおす",
+    "type": "status_cure",
+    "consumable": true,
+    "usableInBattle": true,
+    "usableInField": true,
+    "target": "oneAlly",
+    "effect": { "cureStatus": ["poison"] },
+    "price": 10,
+    "maxStack": 99
+  },
+  {
+    "id": "wooden_sword",
+    "name": "ひのきのぼう",
+    "description": "こうげきりょく+2",
+    "type": "misc",
+    "consumable": false,
+    "usableInBattle": false,
+    "usableInField": false,
+    "target": "self",
+    "effect": {},
+    "price": 5,
+    "maxStack": 1
+  },
+  {
+    "id": "copper_sword",
+    "name": "どうのつるぎ",
+    "description": "こうげきりょく+10",
+    "type": "misc",
+    "consumable": false,
+    "usableInBattle": false,
+    "usableInField": false,
+    "target": "self",
+    "effect": {},
+    "price": 100,
+    "maxStack": 1
+  }
+]
