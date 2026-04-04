@@ -15,9 +15,11 @@ export class SceneManager {
       this.app.stage.removeChild(this.currentScene.container);
     }
 
-    this.currentScene = scene;
+    // onEnter完了前にupdateが呼ばれないようnullにする
+    this.currentScene = null;
     this.app.stage.addChild(scene.container);
     await scene.onEnter();
+    this.currentScene = scene;
   }
 
   update(delta: number): void {

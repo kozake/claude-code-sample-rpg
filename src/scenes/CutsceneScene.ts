@@ -160,9 +160,10 @@ export class CutsceneScene extends Scene {
       if (this.game.state.active.length > 0) {
         this.game.state.active[0].name = name;
       }
-      // カットシーンに戻る
+      // 次のステップに進めてからカットシーンに戻る
+      // （switchTo→onEnter→executeCurrentStepで次ステップが実行される）
+      this.currentIdx++;
       this.game.scenes.switchTo(this);
-      this.nextStep();
     });
     this.game.scenes.switchTo(nameScene);
   }
