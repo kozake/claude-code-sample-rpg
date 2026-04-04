@@ -237,8 +237,11 @@ export class BattleScene extends Scene {
     if (this.messageIdx < this.messageQueue.length) {
       this.messageText.text = this.messageQueue[this.messageIdx];
     } else {
-      this._messageCallback?.();
+      // コールバック内でshowMessages()が呼ばれて新しいコールバックがセットされる場合があるため、
+      // 先にクリアしてからコールバックを実行する
+      const cb = this._messageCallback;
       this._messageCallback = undefined;
+      cb?.();
     }
   }
 
