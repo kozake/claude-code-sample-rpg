@@ -13,8 +13,13 @@ import { StatusScene } from './StatusScene';
 import { ItemScene } from './ItemScene';
 import { EquipScene } from './EquipScene';
 import { BattleScene } from './BattleScene';
+import { ShopScene } from './ShopScene';
+import { InnScene } from './InnScene';
+import { ChurchScene } from './ChurchScene';
+import { ChoiceWindow } from '../ui/ChoiceWindow';
+import { DialogueManager } from '../systems/DialogueManager';
 import type { Game } from '../Game';
-import type { MapData, EnemyData, EnemyGroupData } from '../data/types';
+import type { MapData, EnemyData, EnemyGroupData, NPCData } from '../data/types';
 
 /**
  * フィールドシーン
@@ -45,6 +50,9 @@ export class FieldScene extends Scene {
   private lastStepCount = 0;
   private enemyDataCache: EnemyData[] | null = null;
   private groupDataCache: EnemyGroupData[] | null = null;
+  private npcDataCache: Map<string, NPCData> = new Map();
+  private dialogueManager!: DialogueManager;
+  private choiceWindow = new ChoiceWindow();
 
   constructor(game: Game, mapId: string, startX?: number, startY?: number) {
     super(game);
@@ -79,6 +87,12 @@ export class FieldScene extends Scene {
     this.camera.follow(this.player.centerX, this.player.centerY);
     this.camera.applyTo(this.tileMap.container);
 
+    // DialogueManager初期化
+    this.dialogueManager = new DialogueManager(this.game);
+
+    // NPCデータ読み込み
+    await this.loadNpcData();
+
     // UIオーバーレイ（カメラの影響を受けない）
     this.dpad = new DPad(this.game.input);
     this.actionBtn = new ActionButton(this.game.input);
@@ -88,7 +102,24 @@ export class FieldScene extends Scene {
     this.container.addChild(this.actionBtn.container);
     this.container.addChild(this.menuBtn.container);
     this.container.addChild(this.messageWindow.container);
+    this.container.addChild(this.choiceWindow.container);
     this.container.addChild(this.overlayContainer);
+  }
+
+  private async loadNpcData(): Promise<void> {
+    // マップ上のNPC IDからNPCデータファイルを探す
+    if (!this.mapData?.npcs || this.mapData.npcs.length === 0) return;
+
+    // village_npcs.json等を読み込み（マップIDに基づいて推測、または全NPC統合ファイル）
+    const npcFiles = [`npcs/${this.mapId}_npcs.json`, 'npcs/village_npcs.json'];
+    for (const file of npcFiles) {
+      const data = await this.game.content.loadJson<NPCData[]>(file);
+      if (data) {
+        for (const npc of data) {
+          this.npcDataCache.set(npc.id, npc);
+        }
+      }
+    }
   }
 
   update(delta: number): void {
@@ -98,6 +129,13 @@ export class FieldScene extends Scene {
     // オーバーレイ（メニュー等）が開いている場合
     if (this.overlayScene) {
       this.overlayScene.update(delta);
+      input.resetOneShot();
+      return;
+    }
+
+    // 選択肢表示中
+    if (this.choiceWindow.isVisible) {
+      this.choiceWindow.handleInput(input.direction, input.isActionPressed);
       input.resetOneShot();
       return;
     }
@@ -238,10 +276,82 @@ export class FieldScene extends Scene {
 
     if (!this.mapData?.npcs) return;
 
-    for (const npc of this.mapData.npcs) {
-      if (npc.x === checkX && npc.y === checkY) {
-        this.messageWindow.show([`${npc.id}に はなしかけた！`, 'まだ かいわデータが ありません。']);
+    for (const npcRef of this.mapData.npcs) {
+      if (npcRef.x === checkX && npcRef.y === checkY) {
+        const npcData = this.npcDataCache.get(npcRef.id);
+        if (!npcData) {
+          this.messageWindow.show([`${npcRef.id}に はなしかけた！`]);
+          return;
+        }
+        this.interactWithNpc(npcData);
         return;
+      }
+    }
+  }
+
+  private interactWithNpc(npc: NPCData): void {
+    const dialogue = this.dialogueManager.getCurrentDialogue(npc);
+    if (!dialogue) {
+      this.messageWindow.show([`${npc.name}は なにも いわなかった。`]);
+      return;
+    }
+
+    // メッセージ表示 → 完了後にアクション実行
+    this.messageWindow.show(dialogue.lines, () => {
+      // フラグ・アイテム付与
+      this.dialogueManager.executeDialogueActions(dialogue);
+
+      // 選択肢がある場合
+      if (dialogue.choices && dialogue.choices.length > 0) {
+        const labels = dialogue.choices.map((c) => c.label);
+        this.choiceWindow.show(labels, (idx) => {
+          const choice = dialogue.choices![idx];
+          this.dialogueManager.executeChoiceAction(choice);
+          // 選択後のメッセージ
+          if (choice.action.lines) {
+            this.messageWindow.show(choice.action.lines, () => {
+              this.handleNpcService(npc, choice);
+            });
+          } else {
+            this.handleNpcService(npc, choice);
+          }
+          // repeatDialogue（「だが ことわる」パターン）
+          if (choice.action.repeatDialogue) {
+            setTimeout(() => this.interactWithNpc(npc), 100);
+          }
+        });
+        return;
+      }
+
+      // ショップ/宿屋/教会
+      this.handleNpcService(npc);
+    });
+  }
+
+  private handleNpcService(npc: NPCData, _choice?: unknown): void {
+    if (!npc.shopType) return;
+
+    switch (npc.shopType) {
+      case 'weapon':
+      case 'armor':
+      case 'item': {
+        const shopItems = (npc.shopItems ?? []).map((id) => ({
+          id,
+          name: id, // TODO: アイテムマスタから名前を引く
+          price: 10,
+        }));
+        this.showOverlay(new ShopScene(this.game, shopItems, () => this.closeOverlay()));
+        break;
+      }
+      case 'inn': {
+        this.showOverlay(new InnScene(this.game, npc.innPrice ?? 10, () => this.closeOverlay()));
+        break;
+      }
+      case 'church': {
+        this.showOverlay(
+          new ChurchScene(this.game, () => this.closeOverlay(), this.mapId, this.player.tileX, this.player.tileY)
+        );
+        break;
       }
     }
   }

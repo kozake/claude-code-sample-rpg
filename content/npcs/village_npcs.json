@@ -1,0 +1,135 @@
+[
+  {
+    "id": "village_elder",
+    "name": "むらのちょうろう",
+    "sprite": "elder",
+    "dialogues": [
+      {
+        "condition": { "type": "flag", "key": "talked_elder", "value": true },
+        "lines": [
+          "おお ゆうしゃよ！",
+          "まものたちが あばれておる。",
+          "きをつけて すすむのじゃ。"
+        ]
+      },
+      {
+        "lines": [
+          "おお よくぞ まいった！",
+          "わしは この むらの ちょうろうじゃ。",
+          "このさきには まものたちが うろついておる。",
+          "じゅうぶん そなえを してから でかけるのじゃぞ。"
+        ],
+        "setFlags": { "talked_elder": true },
+        "giveItem": { "id": "herb", "count": 3 }
+      }
+    ]
+  },
+  {
+    "id": "weapon_shop",
+    "name": "ぶきやのおやじ",
+    "sprite": "shopkeeper",
+    "shopType": "weapon",
+    "shopItems": ["wooden_sword", "copper_sword"],
+    "dialogues": [
+      {
+        "lines": [
+          "ここは ぶきやだ！",
+          "なにか おさがしかな？"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "item_shop",
+    "name": "どうぐやのおばさん",
+    "sprite": "shopkeeper",
+    "shopType": "item",
+    "shopItems": ["herb", "antidote"],
+    "dialogues": [
+      {
+        "lines": [
+          "いらっしゃいませ！",
+          "どうぐは ぼうけんの ひつじゅひんですよ。"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "innkeeper",
+    "name": "やどやのしゅじん",
+    "sprite": "innkeeper",
+    "shopType": "inn",
+    "innPrice": 10,
+    "dialogues": [
+      {
+        "lines": [
+          "ここは やどやです。",
+          "ゆっくり おやすみください。"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "priest",
+    "name": "しんぷ",
+    "sprite": "priest",
+    "shopType": "church",
+    "churchServices": ["save", "revive", "poison_cure", "curse_remove"],
+    "dialogues": [
+      {
+        "lines": [
+          "ようこそ おまいりくださいました。",
+          "なにか おちからに なれることが ありますか？"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "villager_a",
+    "name": "むらびとA",
+    "sprite": "villager",
+    "dialogues": [
+      {
+        "condition": { "type": "flag", "key": "talked_elder", "value": true },
+        "lines": [
+          "ちょうろうさまが あなたのことを",
+          "まっていましたよ！"
+        ]
+      },
+      {
+        "lines": [
+          "ここは はじまりの むらです。",
+          "ちょうろうさまが あなたに ようじが あるみたいですよ。"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "villager_b",
+    "name": "むらびとB",
+    "sprite": "villager",
+    "dialogues": [
+      {
+        "lines": [
+          "にしのほうに もりがあって",
+          "まものが たくさん いるらしいよ。",
+          "きをつけてね！"
+        ],
+        "choices": [
+          {
+            "label": "ありがとう",
+            "action": {
+              "lines": ["がんばってね！"]
+            }
+          },
+          {
+            "label": "だいじょうぶ",
+            "action": {
+              "lines": ["たのもしいね！"]
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
