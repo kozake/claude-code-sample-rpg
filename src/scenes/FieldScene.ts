@@ -306,7 +306,10 @@ export class FieldScene extends Scene {
 
       // アイテム取得
       if (event.action.giveItem) {
-        this.game.state.addItem(event.action.giveItem.id, event.action.giveItem.count);
+        const items = Array.isArray(event.action.giveItem) ? event.action.giveItem : [event.action.giveItem];
+        for (const item of items) {
+          this.game.state.addItem(item.id, item.count);
+        }
       }
 
       // フラグ設定
@@ -369,7 +372,10 @@ export class FieldScene extends Scene {
         }
         // アイテム付与
         if (event.action.giveItem) {
-          this.game.state.addItem(event.action.giveItem.id, event.action.giveItem.count);
+          const items = Array.isArray(event.action.giveItem) ? event.action.giveItem : [event.action.giveItem];
+          for (const item of items) {
+            this.game.state.addItem(item.id, item.count);
+          }
         }
         // 勝利後カットシーン
         if (event.action.cutscene) {

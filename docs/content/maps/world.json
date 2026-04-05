@@ -104,12 +104,11 @@
   },
   "bgm": "field",
   "playerStart": { "x": 15, "y": 15 },
-  "encounterRate": 8,
+  "encounterRate": 15,
   "encounters": [
+    { "groupId": "slime_single", "weight": 40 },
     { "groupId": "slime_group", "weight": 30 },
-    { "groupId": "bat_group", "weight": 20 },
-    { "groupId": "goblin_group", "weight": 30 },
-    { "groupId": "goblin_archer_group", "weight": 20 }
+    { "groupId": "bat_group", "weight": 30 }
   ],
   "npcs": [
     {

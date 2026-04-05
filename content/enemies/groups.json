@@ -1,5 +1,11 @@
 [
   {
+    "id": "slime_single",
+    "enemies": [
+      { "enemyId": "slime", "count": 1 }
+    ]
+  },
+  {
     "id": "slime_group",
     "enemies": [
       { "enemyId": "slime", "count": 2 }
