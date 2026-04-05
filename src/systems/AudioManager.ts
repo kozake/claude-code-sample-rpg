@@ -41,9 +41,19 @@ export class AudioManager {
     this.currentBgm = howl;
     this.currentBgmId = id;
 
-    howl.volume(0);
-    howl.play();
-    howl.fade(0, this.bgmVolume, fadeIn);
+    const startPlayback = () => {
+      // 別のBGMに切り替わっていたら再生しない
+      if (this.currentBgm !== howl) return;
+      howl.volume(0);
+      howl.play();
+      howl.fade(0, this.bgmVolume, fadeIn);
+    };
+
+    if (howl.state() === 'loaded') {
+      startPlayback();
+    } else {
+      howl.once('load', startPlayback);
+    }
   }
 
   /** BGM停止 */
