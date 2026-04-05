@@ -1,9 +1,22 @@
 [
   {
     "id": "prologue",
-    "name": "序章 旅立ち",
-    "description": "魔王の脅威に立ち向かうため、勇者は旅に出る。",
-    "objectives": ["王様に話しかける", "町の外に出る"],
-    "completionFlag": "chapter_prologue_complete"
+    "name": "序章 めざめ",
+    "description": "勇者は小さな村で目覚める。闇の魔王が復活し、世界は脅威に包まれていた。",
+    "objectives": ["むらのちょうろうに はなしかける", "むらの なかを みてまわる"],
+    "completionFlag": "opening_complete"
+  },
+  {
+    "id": "chapter_1",
+    "name": "第1章 ゴブリンのどうくつ",
+    "description": "ゴブリンに襲われる村を救うため、勇者は北の洞窟へ向かう。行方不明のエルナを救い出し、ゴブリンキングを倒せ！",
+    "objectives": [
+      "ちょうろうから いらいを うける",
+      "きたの どうくつへ むかう",
+      "エルナを すくいだす",
+      "ゴブリンキングを たおす",
+      "むらに もどって ほうこくする"
+    ],
+    "completionFlag": "chapter_1_complete"
   }
 ]

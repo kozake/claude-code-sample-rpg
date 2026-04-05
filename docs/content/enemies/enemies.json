@@ -52,5 +52,61 @@
     "criticalRate": 4,
     "dodgeRate": 3,
     "dropItem": { "id": "herb", "rate": 0.25 }
+  },
+  {
+    "id": "goblin",
+    "name": "ゴブリン",
+    "hp": 12,
+    "attack": 7,
+    "defense": 3,
+    "speed": 5,
+    "exp": 4,
+    "gold": 6,
+    "sprite": "goblin",
+    "skills": [
+      { "type": "attack", "weight": 85 },
+      { "type": "guard", "weight": 15 }
+    ],
+    "fleeResistance": 15,
+    "criticalRate": 2,
+    "dodgeRate": 4,
+    "dropItem": { "id": "herb", "rate": 0.15 }
+  },
+  {
+    "id": "goblin_archer",
+    "name": "ゴブリンアーチャー",
+    "hp": 10,
+    "attack": 10,
+    "defense": 2,
+    "speed": 9,
+    "exp": 6,
+    "gold": 8,
+    "sprite": "goblin_archer",
+    "skills": [
+      { "type": "attack", "weight": 100 }
+    ],
+    "fleeResistance": 10,
+    "criticalRate": 5,
+    "dodgeRate": 10,
+    "dropItem": { "id": "antidote", "rate": 0.1 }
+  },
+  {
+    "id": "goblin_king",
+    "name": "ゴブリンキング",
+    "hp": 55,
+    "attack": 16,
+    "defense": 8,
+    "speed": 6,
+    "exp": 50,
+    "gold": 100,
+    "sprite": "goblin_king",
+    "skills": [
+      { "type": "attack", "weight": 50 },
+      { "type": "skill", "skillName": "つうこんのいちげき", "power": 25, "weight": 30 },
+      { "type": "guard", "weight": 20, "hpThreshold": 0.3 }
+    ],
+    "fleeResistance": 100,
+    "criticalRate": 5,
+    "dodgeRate": 3
   }
 ]

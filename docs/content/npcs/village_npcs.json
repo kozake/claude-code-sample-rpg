@@ -5,22 +5,83 @@
     "sprite": "elder",
     "dialogues": [
       {
-        "condition": { "type": "flag", "key": "talked_elder", "value": true },
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
         "lines": [
-          "おお ゆうしゃよ！",
-          "まものたちが あばれておる。",
-          "きをつけて すすむのじゃ。"
+          "おお {heroName}よ！",
+          "よくぞ ゴブリンキングを たおしてくれた！",
+          "むらは おまえのおかげで すくわれたぞ。",
+          "これは むらの みんなからの おれいじゃ。"
+        ],
+        "setFlags": { "chapter_1_complete": true },
+        "giveItem": { "id": "leather_armor", "count": 1 }
+      },
+      {
+        "condition": {
+          "type": "and",
+          "children": [
+            { "type": "flag", "key": "chapter_1_complete", "value": true },
+            { "type": "flag", "key": "goblin_king_defeated", "value": true }
+          ]
+        },
+        "lines": [
+          "おお {heroName}よ！",
+          "おまえは むらの えいゆうじゃ！",
+          "じつは ひがしの ほうから",
+          "きみょうな うわさが ながれてきておるのじゃが...",
+          "まあ それは また いずれ はなそう。",
+          "いまは ゆっくり やすむがよい。"
+        ]
+      },
+      {
+        "condition": { "type": "flag", "key": "quest_goblin_cave_accepted", "value": true },
+        "lines": [
+          "{heroName}よ がんばっておるか？",
+          "ゴブリンのどうくつは きたの ほうに あるぞ。",
+          "エルナを たのんだぞ。",
+          "むりは するでないぞ！"
         ]
       },
       {
         "lines": [
           "おお よくぞ まいった！",
           "わしは この むらの ちょうろうじゃ。",
-          "このさきには まものたちが うろついておる。",
-          "じゅうぶん そなえを してから でかけるのじゃぞ。"
+          "じつは たいへんな ことに なっておるのじゃ...",
+          "きたの どうくつから ゴブリンたちが あらわれ",
+          "よなよな むらを おそっているのじゃ。",
+          "しかも むらむすめの エルナが",
+          "くすりそうを つみにいったまま もどらぬのじゃ...",
+          "おお ゆうしゃよ たのむ！",
+          "ゴブリンのどうくつへ いって",
+          "エルナを すくいだしてはくれぬか？"
         ],
-        "setFlags": { "talked_elder": true },
-        "giveItem": { "id": "herb", "count": 3 }
+        "choices": [
+          {
+            "label": "まかせろ！",
+            "action": {
+              "lines": [
+                "おお ありがたい！ たのもしいぞ！",
+                "これを もっていけ！ たびの そなえじゃ。",
+                "やくそうを 5つ てにいれた！",
+                "きたの どうくつの いりぐちは",
+                "このむらを でて きたに すすんだ ところじゃ。",
+                "きをつけて いくのじゃぞ！"
+              ],
+              "setFlags": { "quest_goblin_cave_accepted": true, "talked_elder": true },
+              "giveItem": { "id": "herb", "count": 5 }
+            }
+          },
+          {
+            "label": "まだ じゅんびが...",
+            "action": {
+              "lines": [
+                "そうか... むりもないのう。",
+                "じゅんびが できたら また きてくれ。",
+                "エルナの ことが しんぱいじゃ..."
+              ],
+              "repeatDialogue": true
+            }
+          }
+        ]
       }
     ]
   },
@@ -32,8 +93,25 @@
     "shopItems": ["wooden_sword", "copper_sword"],
     "dialogues": [
       {
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
+        "lines": [
+          "おう！ ゴブリンたいじ おつかれさん！",
+          "つぎの たびに そなえて",
+          "ぶきを そろえていきな！"
+        ]
+      },
+      {
+        "condition": { "type": "flag", "key": "quest_goblin_cave_accepted", "value": true },
+        "lines": [
+          "ゴブリンたいじに いくのか！",
+          "いい ぶきを もっていきな！"
+        ]
+      },
+      {
         "lines": [
           "ここは ぶきやだ！",
+          "さいきん ゴブリンが でるから",
+          "ぶきの うれゆきが いいぜ。",
           "なにか おさがしかな？"
         ]
       }
@@ -47,9 +125,17 @@
     "shopItems": ["herb", "antidote"],
     "dialogues": [
       {
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
+        "lines": [
+          "ゴブリンが いなくなって ほっとしたわ！",
+          "どうぐは ぼうけんの ひつじゅひんですよ。"
+        ]
+      },
+      {
         "lines": [
           "いらっしゃいませ！",
-          "どうぐは ぼうけんの ひつじゅひんですよ。"
+          "どうぐは ぼうけんの ひつじゅひんですよ。",
+          "やくそうは たくさん もっていってね！"
         ]
       }
     ]
@@ -86,19 +172,30 @@
   },
   {
     "id": "villager_a",
-    "name": "むらびとA",
+    "name": "むらのおとこ",
     "sprite": "villager",
     "dialogues": [
       {
-        "condition": { "type": "flag", "key": "talked_elder", "value": true },
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
         "lines": [
-          "ちょうろうさまが あなたのことを",
-          "まっていましたよ！"
+          "ゴブリンが いなくなって へいわに なったよ！",
+          "ほんとうに ありがとう！",
+          "これで あんしんして はたけしごとが できる。"
+        ]
+      },
+      {
+        "condition": { "type": "flag", "key": "quest_goblin_cave_accepted", "value": true },
+        "lines": [
+          "きたの どうくつに ゴブリンが いるらしいよ。",
+          "あいつら よなよな むらに きて",
+          "たべものを ぬすんでいくんだ...",
+          "たのむ たおしてくれ！"
         ]
       },
       {
         "lines": [
-          "ここは はじまりの むらです。",
+          "さいきん ゴブリンが でてきて こまっているんだ...",
+          "よるに なると むらに おそってくるんだよ。",
           "ちょうろうさまが あなたに ようじが あるみたいですよ。"
         ]
       }
@@ -106,28 +203,47 @@
   },
   {
     "id": "villager_b",
-    "name": "むらびとB",
+    "name": "むらのおんな",
     "sprite": "villager",
     "dialogues": [
       {
+        "condition": {
+          "type": "and",
+          "children": [
+            { "type": "flag", "key": "goblin_king_defeated", "value": true },
+            { "type": "flag", "key": "elna_joined", "value": true }
+          ]
+        },
         "lines": [
-          "にしのほうに もりがあって",
-          "まものが たくさん いるらしいよ。",
-          "きをつけてね！"
-        ],
-        "choices": [
-          {
-            "label": "ありがとう",
-            "action": {
-              "lines": ["がんばってね！"]
-            }
-          },
-          {
-            "label": "だいじょうぶ",
-            "action": {
-              "lines": ["たのもしいね！"]
-            }
-          }
+          "エルナちゃんが ぶじで よかったわ！",
+          "あの子 いつも みんなのために",
+          "くすりそうを つんでくれていたの。",
+          "あなたと いっしょなら あんしんだわ。"
+        ]
+      },
+      {
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
+        "lines": [
+          "エルナちゃんが ぶじで よかったわ！",
+          "ほんとうに ありがとう！"
+        ]
+      },
+      {
+        "condition": { "type": "flag", "key": "quest_goblin_cave_accepted", "value": true },
+        "lines": [
+          "エルナちゃんが しんぱいだわ...",
+          "あの子 くすりそうを つみに でかけたまま",
+          "かえってこないの...",
+          "はやく たすけてあげて！"
+        ]
+      },
+      {
+        "lines": [
+          "むらむすめの エルナちゃんが",
+          "くすりそうを つみにいったまま",
+          "かえってこないの...",
+          "ゴブリンに つかまったんじゃないかって",
+          "みんな しんぱいしているわ。"
         ]
       }
     ]

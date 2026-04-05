@@ -26,5 +26,33 @@
     "joinedByDefault": true,
     "removable": false,
     "storyLocked": false
+  },
+  {
+    "id": "elna",
+    "name": "エルナ",
+    "class": "healer",
+    "level": 2,
+    "hp": 18,
+    "maxHp": 18,
+    "mp": 12,
+    "maxMp": 12,
+    "attack": 4,
+    "defense": 4,
+    "speed": 7,
+    "exp": 10,
+    "equipment": {
+      "weapon": null,
+      "armor": null,
+      "shield": null,
+      "accessory": null
+    },
+    "spells": ["hoimi"],
+    "criticalRate": 2,
+    "dodgeRate": 5,
+    "statusEffects": [],
+    "sprite": "elna",
+    "joinedByDefault": false,
+    "removable": true,
+    "storyLocked": false
   }
 ]

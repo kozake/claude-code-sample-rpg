@@ -13,5 +13,20 @@
       { "level": 9,  "expRequired": 520,   "maxHp": 95, "maxMp": 42, "attack": 41, "defense": 33, "speed": 23 },
       { "level": 10, "expRequired": 700,   "maxHp": 110,"maxMp": 50, "attack": 48, "defense": 38, "speed": 27 }
     ]
+  },
+  {
+    "classId": "healer",
+    "entries": [
+      { "level": 1,  "expRequired": 0,     "maxHp": 12, "maxMp": 10, "attack": 3,  "defense": 3,  "speed": 6 },
+      { "level": 2,  "expRequired": 10,    "maxHp": 18, "maxMp": 15, "attack": 4,  "defense": 4,  "speed": 7 },
+      { "level": 3,  "expRequired": 30,    "maxHp": 24, "maxMp": 22, "attack": 6,  "defense": 6,  "speed": 9 },
+      { "level": 4,  "expRequired": 60,    "maxHp": 30, "maxMp": 30, "attack": 8,  "defense": 8,  "speed": 11 },
+      { "level": 5,  "expRequired": 110,   "maxHp": 38, "maxMp": 38, "attack": 10, "defense": 10, "speed": 13 },
+      { "level": 6,  "expRequired": 180,   "maxHp": 46, "maxMp": 48, "attack": 12, "defense": 13, "speed": 15 },
+      { "level": 7,  "expRequired": 270,   "maxHp": 55, "maxMp": 58, "attack": 15, "defense": 16, "speed": 17 },
+      { "level": 8,  "expRequired": 380,   "maxHp": 64, "maxMp": 70, "attack": 18, "defense": 19, "speed": 20 },
+      { "level": 9,  "expRequired": 520,   "maxHp": 74, "maxMp": 82, "attack": 21, "defense": 22, "speed": 23 },
+      { "level": 10, "expRequired": 700,   "maxHp": 85, "maxMp": 95, "attack": 25, "defense": 26, "speed": 26 }
+    ]
   }
 ]

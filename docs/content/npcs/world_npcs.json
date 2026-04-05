@@ -1,0 +1,27 @@
+[
+  {
+    "id": "wounded_soldier",
+    "name": "きずついた へいし",
+    "sprite": "soldier",
+    "dialogues": [
+      {
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
+        "lines": [
+          "ゴブリンキングが たおされたと きいたぞ！",
+          "おまえが やったのか！",
+          "たいしたものだ... ありがとう。"
+        ]
+      },
+      {
+        "lines": [
+          "う...うごけない...",
+          "きたの どうくつに ゴブリンが",
+          "うじゃうじゃ いるぞ...",
+          "やつらの ボスは おくの へやに いる...",
+          "きをつけろ..."
+        ],
+        "setFlags": { "talked_wounded_soldier": true }
+      }
+    ]
+  }
+]

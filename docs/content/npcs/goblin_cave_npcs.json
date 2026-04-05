@@ -1,0 +1,68 @@
+[
+  {
+    "id": "elna_captured",
+    "name": "エルナ",
+    "sprite": "elna",
+    "dialogues": [
+      {
+        "condition": {
+          "type": "and",
+          "children": [
+            { "type": "flag", "key": "goblin_king_defeated", "value": true },
+            { "type": "flag", "key": "elna_joined", "value": true }
+          ]
+        },
+        "lines": [
+          "さあ むらに かえりましょう！"
+        ]
+      },
+      {
+        "condition": { "type": "flag", "key": "goblin_king_defeated", "value": true },
+        "lines": [
+          "ゴブリンキングを たおしてくれたのね！",
+          "ありがとう！ あなたのおかげで たすかったわ！",
+          "わたしは エルナ。",
+          "この むらで くすりそうを つんで",
+          "きずついた ひとたちを たすけていたの。",
+          "あなたの たびに ついていきたいの！",
+          "わたしの かいふくの ちからが",
+          "きっと やくに たつわ！"
+        ],
+        "choices": [
+          {
+            "label": "もちろん！",
+            "action": {
+              "lines": [
+                "ありがとう！",
+                "エルナが なかまに くわわった！"
+              ],
+              "setFlags": { "elna_joined": true },
+              "addPartyMember": "elna"
+            }
+          },
+          {
+            "label": "あぶないよ",
+            "action": {
+              "lines": [
+                "だいじょうぶ！ わたしも たたかえるわ！",
+                "おねがい つれていって！",
+                "エルナが なかまに くわわった！"
+              ],
+              "setFlags": { "elna_joined": true },
+              "addPartyMember": "elna"
+            }
+          }
+        ]
+      },
+      {
+        "lines": [
+          "た...たすけて！",
+          "ゴブリンたちに つかまってしまったの...",
+          "ゴブリンキングは このおくに いるわ。",
+          "おねがい たおして！"
+        ],
+        "setFlags": { "talked_elna": true }
+      }
+    ]
+  }
+]
