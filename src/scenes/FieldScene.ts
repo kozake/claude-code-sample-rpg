@@ -56,6 +56,7 @@ export class FieldScene extends Scene {
   private npcEntities: NpcEntity[] = [];
   private dialogueManager!: DialogueManager;
   private choiceWindow = new ChoiceWindow();
+  private blockedWarpKey: string | null = null;
 
   constructor(game: Game, mapId: string, startX?: number, startY?: number) {
     super(game);
@@ -262,7 +263,9 @@ export class FieldScene extends Scene {
       if (this.player.tileX === warp.x && this.player.tileY === warp.y) {
         // 条件チェック
         if (warp.condition && !this.dialogueManager.evaluateCondition(warp.condition)) {
-          if (warp.blockedMessage && !this.messageWindow.isVisible) {
+          const warpKey = `${warp.x},${warp.y}`;
+          if (warp.blockedMessage && !this.messageWindow.isVisible && this.blockedWarpKey !== warpKey) {
+            this.blockedWarpKey = warpKey;
             this.messageWindow.show([warp.blockedMessage]);
           }
           return;
@@ -272,6 +275,8 @@ export class FieldScene extends Scene {
         return;
       }
     }
+    // プレイヤーがワープ地点から離れたらブロック状態をリセット
+    this.blockedWarpKey = null;
   }
 
   private checkEvents(): void {
