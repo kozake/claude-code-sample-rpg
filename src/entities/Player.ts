@@ -22,6 +22,9 @@ export class Player extends Entity {
   constructor(tileX: number, tileY: number) {
     super(tileX, tileY, 0x00ccff); // 青色の仮スプライト
     this.moveSpeed = 0.1;
+
+    // heroスプライトを読み込み
+    this.loadSpriteSheet('assets/sprites/characters/hero.png');
   }
 
   /** 入力と衝突判定を元に移動処理 */

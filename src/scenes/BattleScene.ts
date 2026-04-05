@@ -1,4 +1,4 @@
-import { Graphics, Text, TextStyle, Container } from 'pixi.js';
+import { Graphics, Text, TextStyle, Container, Sprite, Texture, Assets } from 'pixi.js';
 import { Scene } from '../core/Scene';
 import { Window } from '../ui/Window';
 import { DPad } from '../ui/DPad';
@@ -8,6 +8,8 @@ import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
 import type { EnemyData, PartyMember } from '../data/types';
+
+const BASE = import.meta.env.BASE_URL;
 
 type BattlePhase = 'start' | 'command' | 'target' | 'executing' | 'result' | 'victory' | 'defeat';
 
@@ -44,8 +46,14 @@ export class BattleScene extends Scene {
     this.onBattleEnd = onBattleEnd;
   }
 
-  onEnter(): void {
+  async onEnter(): Promise<void> {
     this.game.audio.playBgm('battle');
+
+    // 敵スプライトを事前ロード
+    const spriteIds = [...new Set(this.battleState.enemies.map((e) => e.data.sprite).filter(Boolean))];
+    await Promise.all(
+      spriteIds.map((id) => Assets.load(`${BASE}assets/sprites/enemies/${id}.png`).catch(() => null))
+    );
 
     this.drawBackground();
     this.drawEnemies();
@@ -76,36 +84,53 @@ export class BattleScene extends Scene {
 
   private drawEnemies(): void {
     this.enemyArea.removeChildren();
-    const style = new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 14, fill: COLORS.TEXT });
 
     this.battleState.enemies.forEach((enemy, i) => {
-      // 仮表示（スプライトがないのでテキスト+矩形で代替）
-      const ex = GAME_WIDTH / 2 - ((this.battleState.enemies.length - 1) * 50) / 2 + i * 50;
+      const ex = GAME_WIDTH / 2 - ((this.battleState.enemies.length - 1) * 70) / 2 + i * 70;
       const ey = 80;
 
       if (enemy.isAlive) {
-        const rect = new Graphics();
-        rect.rect(ex - 16, ey - 16, 32, 32).fill(0xcc3333);
-        rect.rect(ex - 16, ey - 16, 32, 32).stroke({ color: COLORS.WHITE, width: 1 });
-        this.enemyArea.addChild(rect);
+        // スプライト画像を試みる
+        const spriteId = enemy.data.sprite;
+        if (spriteId) {
+          const tex = Assets.get<Texture>(`${BASE}assets/sprites/enemies/${spriteId}.png`);
+          if (tex) {
+            const sprite = new Sprite(tex);
+            sprite.anchor.set(0.5);
+            sprite.x = ex;
+            sprite.y = ey;
+            this.enemyArea.addChild(sprite);
+          } else {
+            this.drawEnemyFallback(ex, ey);
+          }
+        } else {
+          this.drawEnemyFallback(ex, ey);
+        }
 
         const name = new Text({ text: enemy.data.name, style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 9, fill: COLORS.TEXT }) });
         name.anchor.set(0.5);
         name.x = ex;
-        name.y = ey + 24;
+        name.y = ey + 40;
         this.enemyArea.addChild(name);
 
         // HP バー
         const hpRatio = enemy.currentHp / enemy.data.hp;
-        const barW = 28;
+        const barW = 40;
         const bar = new Graphics();
-        bar.rect(ex - barW / 2, ey + 32, barW, 3).fill(0x333333);
-        bar.rect(ex - barW / 2, ey + 32, barW * hpRatio, 3).fill(hpRatio > 0.3 ? COLORS.HP_GREEN : COLORS.HP_RED);
+        bar.rect(ex - barW / 2, ey + 48, barW, 3).fill(0x333333);
+        bar.rect(ex - barW / 2, ey + 48, barW * hpRatio, 3).fill(hpRatio > 0.3 ? COLORS.HP_GREEN : COLORS.HP_RED);
         this.enemyArea.addChild(bar);
       }
     });
 
     this.container.addChild(this.enemyArea);
+  }
+
+  private drawEnemyFallback(ex: number, ey: number): void {
+    const rect = new Graphics();
+    rect.rect(ex - 16, ey - 16, 32, 32).fill(0xcc3333);
+    rect.rect(ex - 16, ey - 16, 32, 32).stroke({ color: COLORS.WHITE, width: 1 });
+    this.enemyArea.addChild(rect);
   }
 
   private drawPartyStatus(): void {

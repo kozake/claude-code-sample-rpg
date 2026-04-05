@@ -74,7 +74,7 @@ export class FieldScene extends Scene {
     }
 
     // マップ初期化
-    this.tileMap.load(this.mapData);
+    await this.tileMap.load(this.mapData);
     this.collision.load(this.mapData);
     this.camera.setMapSize(this.tileMap.widthPx, this.tileMap.heightPx);
 

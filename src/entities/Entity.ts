@@ -1,15 +1,30 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, Rectangle, Assets } from 'pixi.js';
 import { TILE_SIZE } from '../constants';
 import type { Direction } from '../systems/InputManager';
+
+const BASE = import.meta.env.BASE_URL;
+
+/** 方向 → スプライトシートの行インデックス (down=0, left=1, right=2, up=3) */
+const DIR_ROW: Record<Direction, number> = {
+  down: 0,
+  left: 1,
+  right: 2,
+  up: 3,
+};
 
 /**
  * マップ上のエンティティ基底クラス
  * - タイル座標ベースの位置管理
  * - スムーズなタイル間移動アニメーション
+ * - スプライトシート画像対応（48x64: 3列×4行の16x16フレーム）
  */
 export class Entity {
   readonly container = new Container();
-  protected sprite: Graphics;
+  protected fallbackSprite: Graphics | null = null;
+  protected imageSprite: Sprite | null = null;
+  protected spriteFrames: Texture[][] = []; // [row][col]
+  protected animFrame = 0;
+  protected animTimer = 0;
 
   /** 現在のタイル座標 */
   tileX: number;
@@ -33,12 +48,72 @@ export class Entity {
     this.tileX = tileX;
     this.tileY = tileY;
 
-    // 仮のスプライト（16x16の矩形）
-    this.sprite = new Graphics();
-    this.sprite.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(color);
-    this.container.addChild(this.sprite);
+    // 仮のスプライト（16x16の矩形）- 画像ロード失敗時のフォールバック
+    this.fallbackSprite = new Graphics();
+    this.fallbackSprite.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(color);
+    this.container.addChild(this.fallbackSprite);
 
     this.syncPosition();
+  }
+
+  /** スプライトシート画像を読み込み（48x64 = 3列×4行 の16x16フレーム） */
+  protected async loadSpriteSheet(path: string): Promise<void> {
+    try {
+      const url = `${BASE}${path}`;
+      const texture: Texture = await Assets.load(url);
+
+      const frameW = 16;
+      const frameH = 16;
+
+      this.spriteFrames = [];
+      for (let row = 0; row < 4; row++) {
+        const rowFrames: Texture[] = [];
+        for (let col = 0; col < 3; col++) {
+          const frame = new Texture({
+            source: texture.source,
+            frame: new Rectangle(col * frameW, row * frameH, frameW, frameH),
+          });
+          rowFrames.push(frame);
+        }
+        this.spriteFrames.push(rowFrames);
+      }
+
+      // 最初のフレームでSpriteを作成
+      this.imageSprite = new Sprite(this.spriteFrames[0][0]);
+      this.container.addChild(this.imageSprite);
+
+      // フォールバックを非表示
+      if (this.fallbackSprite) {
+        this.fallbackSprite.visible = false;
+      }
+    } catch {
+      // 画像ロード失敗：フォールバックのまま
+    }
+  }
+
+  /** アニメーションフレームを更新 */
+  protected updateAnimation(delta: number): void {
+    if (!this.imageSprite || this.spriteFrames.length === 0) return;
+
+    const row = DIR_ROW[this.direction];
+    const frames = this.spriteFrames[row];
+    if (!frames) return;
+
+    if (this.moving) {
+      // 歩行アニメーション: 0→1→0→2 パターン
+      this.animTimer += delta;
+      if (this.animTimer >= 8) {
+        this.animTimer = 0;
+        this.animFrame = (this.animFrame + 1) % 4;
+      }
+      const pattern = [0, 1, 0, 2];
+      this.imageSprite.texture = frames[pattern[this.animFrame]];
+    } else {
+      // 静止時は正面フレーム
+      this.imageSprite.texture = frames[0];
+      this.animFrame = 0;
+      this.animTimer = 0;
+    }
   }
 
   /** タイル座標からピクセル座標への即時同期 */
@@ -77,18 +152,20 @@ export class Entity {
 
   /** 毎フレーム更新 */
   update(delta: number): void {
-    if (!this.moving) return;
+    if (this.moving) {
+      this.moveProgress += this.moveSpeed * delta;
+      if (this.moveProgress >= 1) {
+        this.moveProgress = 1;
+        this.moving = false;
+      }
 
-    this.moveProgress += this.moveSpeed * delta;
-    if (this.moveProgress >= 1) {
-      this.moveProgress = 1;
-      this.moving = false;
+      // 線形補間
+      const x = this.moveFromX + (this.moveToX - this.moveFromX) * this.moveProgress;
+      const y = this.moveFromY + (this.moveToY - this.moveFromY) * this.moveProgress;
+      this.container.x = Math.round(x * TILE_SIZE);
+      this.container.y = Math.round(y * TILE_SIZE);
     }
 
-    // 線形補間
-    const x = this.moveFromX + (this.moveToX - this.moveFromX) * this.moveProgress;
-    const y = this.moveFromY + (this.moveToY - this.moveFromY) * this.moveProgress;
-    this.container.x = Math.round(x * TILE_SIZE);
-    this.container.y = Math.round(y * TILE_SIZE);
+    this.updateAnimation(delta);
   }
 }

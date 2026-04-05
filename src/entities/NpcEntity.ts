@@ -1,7 +1,7 @@
 import { Entity } from './Entity';
 import type { Direction } from '../systems/InputManager';
 
-/** NPCの色マッピング */
+/** NPCの色マッピング（フォールバック用） */
 const NPC_COLORS: Record<string, number> = {
   elder: 0xffcc00,
   shopkeeper: 0x88cc44,
@@ -32,6 +32,11 @@ export class NpcEntity extends Entity {
     this.originX = tileX;
     this.originY = tileY;
     this.moveSpeed = 0.06;
+
+    // スプライト画像を読み込み
+    if (sprite) {
+      this.loadSpriteSheet(`assets/sprites/characters/${sprite}.png`);
+    }
   }
 
   /** ワンダリング更新 */
