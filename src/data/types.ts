@@ -232,7 +232,7 @@ export interface NPCChoice {
   action: {
     lines?: string[];
     setFlags?: Record<string, boolean | number | string>;
-    giveItem?: { id: string; count: number };
+    giveItem?: { id: string; count: number } | { id: string; count: number }[];
     addPartyMember?: string;
     cutscene?: string;
     repeatDialogue?: boolean;
@@ -247,7 +247,7 @@ export interface NPCDialogue {
   lines: string[];
   choices?: NPCChoice[];
   setFlags?: Record<string, boolean | number | string>;
-  giveItem?: { id: string; count: number };
+  giveItem?: { id: string; count: number } | { id: string; count: number }[];
 }
 
 export interface NPCData {
@@ -281,7 +281,7 @@ export interface MapEvent {
   condition?: StoryCondition;
   action: {
     message?: string[];
-    giveItem?: { id: string; count: number };
+    giveItem?: { id: string; count: number } | { id: string; count: number }[];
     setFlags?: Record<string, boolean | number | string>;
     battle?: string;
     warpTo?: { map: string; x: number; y: number };

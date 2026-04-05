@@ -75,7 +75,10 @@ export class DialogueManager {
       }
     }
     if (dialogue.giveItem) {
-      this.game.state.addItem(dialogue.giveItem.id, dialogue.giveItem.count);
+      const items = Array.isArray(dialogue.giveItem) ? dialogue.giveItem : [dialogue.giveItem];
+      for (const item of items) {
+        this.game.state.addItem(item.id, item.count);
+      }
     }
   }
 
@@ -105,7 +108,10 @@ export class DialogueManager {
       }
     }
     if (action.giveItem) {
-      this.game.state.addItem(action.giveItem.id, action.giveItem.count);
+      const items = Array.isArray(action.giveItem) ? action.giveItem : [action.giveItem];
+      for (const item of items) {
+        this.game.state.addItem(item.id, item.count);
+      }
     }
     if (action.addPartyMember) {
       this.addPartyMember(action.addPartyMember);

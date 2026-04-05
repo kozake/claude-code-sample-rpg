@@ -19,12 +19,12 @@
   {
     "id": "bat",
     "name": "おおこうもり",
-    "hp": 12,
-    "attack": 8,
-    "defense": 4,
-    "speed": 8,
-    "exp": 4,
-    "gold": 5,
+    "hp": 8,
+    "attack": 5,
+    "defense": 3,
+    "speed": 6,
+    "exp": 3,
+    "gold": 4,
     "sprite": "bat",
     "skills": [
       { "type": "attack", "weight": 80 },
