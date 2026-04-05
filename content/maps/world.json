@@ -131,7 +131,7 @@
       "y": 1,
       "toMap": "goblin_cave",
       "toX": 8,
-      "toY": 14,
+      "toY": 13,
       "condition": { "type": "flag", "key": "quest_goblin_cave_accepted", "value": true },
       "blockedMessage": "くらい どうくつの いりぐちだ... むらの ちょうろうに はなしを きいてみよう。"
     }

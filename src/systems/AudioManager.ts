@@ -22,6 +22,9 @@ export class AudioManager {
     if (this.unlocked) return;
     this.unlocked = true;
 
+    // autoSuspendを無効化してAudioContextが自動停止されるのを防ぐ
+    Howler.autoSuspend = false;
+
     // Howler.jsのctxをresume
     const ctx = Howler.ctx;
     if (ctx && ctx.state === 'suspended') {
