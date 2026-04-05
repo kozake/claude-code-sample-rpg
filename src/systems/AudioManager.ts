@@ -84,7 +84,7 @@ export class AudioManager {
 
     // BGMファイルが存在する場合のみ生成
     const howl = new Howl({
-      src: [`${BASE}assets/audio/bgm/${id}.mp3`, `${BASE}assets/audio/bgm/${id}.ogg`],
+      src: [`${BASE}assets/audio/bgm/${id}.mp3`, `${BASE}assets/audio/bgm/${id}.ogg`, `${BASE}assets/audio/bgm/${id}.wav`],
       loop: true,
       volume: this.bgmVolume,
       preload: true,
@@ -101,7 +101,7 @@ export class AudioManager {
     if (this.seCache.has(id)) return this.seCache.get(id)!;
 
     const howl = new Howl({
-      src: [`${BASE}assets/audio/se/${id}.mp3`, `${BASE}assets/audio/se/${id}.ogg`],
+      src: [`${BASE}assets/audio/se/${id}.mp3`, `${BASE}assets/audio/se/${id}.ogg`, `${BASE}assets/audio/se/${id}.wav`],
       volume: this.seVolume,
       preload: true,
       onloaderror: () => {
