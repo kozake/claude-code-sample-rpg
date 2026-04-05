@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
@@ -18,4 +19,8 @@ export default defineConfig({
     outDir: 'docs',
   },
   assetsInclude: ['**/*.json'],
+  test: {
+    globals: true,
+    environment: 'node',
+  },
 });
