@@ -133,7 +133,7 @@
       "toX": 8,
       "toY": 14,
       "condition": { "type": "flag", "key": "quest_goblin_cave_accepted", "value": true },
-      "blockedMessage": "くらい どうくつの いりぐちだ... なにか ようじが なければ はいれそうにない。"
+      "blockedMessage": "くらい どうくつの いりぐちだ... むらの ちょうろうに はなしを きいてみよう。"
     }
   ],
   "events": [
