@@ -146,7 +146,7 @@ export interface ItemData {
   id: string;
   name: string;
   description: string;
-  type: 'heal' | 'attack' | 'revive' | 'status_cure' | 'buff' | 'key' | 'misc';
+  type: 'heal' | 'attack' | 'revive' | 'status_cure' | 'buff' | 'key' | 'misc' | 'equipment';
   consumable: boolean;
   usableInBattle: boolean;
   usableInField: boolean;
@@ -162,6 +162,12 @@ export interface ItemData {
     inflictStatus?: { type: StatusEffect['type']; chance: number };
     revive?: boolean;
     reviveHpPercent?: number;
+  };
+  equipType?: 'weapon' | 'armor' | 'shield' | 'accessory';
+  equipStats?: {
+    attack?: number;
+    defense?: number;
+    speed?: number;
   };
   equipSpellEffect?: string;
   price: number;

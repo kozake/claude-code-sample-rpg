@@ -7,11 +7,11 @@ import { BattleState, type ActionResult } from '../battle/BattleState';
 import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
-import type { EnemyData, PartyMember } from '../data/types';
+import type { EnemyData, PartyMember, ItemData } from '../data/types';
 
 const BASE = import.meta.env.BASE_URL;
 
-type BattlePhase = 'start' | 'command' | 'target' | 'executing' | 'result' | 'victory' | 'defeat';
+type BattlePhase = 'start' | 'command' | 'target' | 'battleItem' | 'battleItemTarget' | 'executing' | 'result' | 'victory' | 'defeat';
 
 const COMMANDS = ['たたかう', 'じゅもん', 'どうぐ', 'ぼうぎょ', 'にげる'] as const;
 
@@ -33,6 +33,11 @@ export class BattleScene extends Scene {
   private messageQueue: string[] = [];
   private messageIdx = 0;
   private onBattleEnd: (victory: boolean) => void;
+  private itemDataMap: Map<string, ItemData> = new Map();
+  private battleItems: { id: string; count: number; data: ItemData }[] = [];
+  private selectedBattleItem: ItemData | null = null;
+  private itemCursor = 0;
+  private allyTargetCursor = 0;
 
   // UI containers
   private enemyArea = new Container();
@@ -48,6 +53,14 @@ export class BattleScene extends Scene {
 
   async onEnter(): Promise<void> {
     this.game.audio.playBgm('battle');
+
+    // アイテムマスタ読み込み
+    const allItems = await this.game.content.loadJson<ItemData[]>('items/items.json');
+    if (allItems) {
+      for (const item of allItems) {
+        this.itemDataMap.set(item.id, item);
+      }
+    }
 
     // 敵スプライトを事前ロード
     const spriteIds = [...new Set(this.battleState.enemies.map((e) => e.data.sprite).filter(Boolean))];
@@ -289,6 +302,14 @@ export class BattleScene extends Scene {
         this.handleTargetInput(input);
         break;
 
+      case 'battleItem':
+        this.handleBattleItemInput(input);
+        break;
+
+      case 'battleItemTarget':
+        this.handleBattleItemTargetInput(input);
+        break;
+
       case 'victory':
       case 'defeat':
         if (input.isActionPressed) {
@@ -325,9 +346,12 @@ export class BattleScene extends Scene {
         case 4: // にげる
           this.executeFlee();
           break;
-        default:
-          // じゅもん/どうぐは後のPhaseで
+        case 1:
+          // じゅもんは後のPhaseで
           this.messageText.text = 'まだ つかえません。';
+          break;
+        case 2: // どうぐ
+          this.openBattleItemSelect();
           break;
       }
     }
@@ -365,6 +389,151 @@ export class BattleScene extends Scene {
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
+    }
+  }
+
+  private openBattleItemSelect(): void {
+    // 戦闘で使えるアイテムをフィルタ
+    this.battleItems = [];
+    for (const invItem of this.game.state.items) {
+      const data = this.itemDataMap.get(invItem.id);
+      if (data && data.usableInBattle) {
+        this.battleItems.push({ id: invItem.id, count: invItem.count, data });
+      }
+    }
+
+    if (this.battleItems.length === 0) {
+      this.messageText.text = 'つかえる どうぐが ない！';
+      return;
+    }
+
+    this.phase = 'battleItem';
+    this.itemCursor = 0;
+    this.drawBattleItemSelect();
+  }
+
+  private drawBattleItemSelect(): void {
+    this.commandArea.removeChildren();
+
+    const winH = this.battleItems.length * 24 + 12;
+    const win = new Window(8, 150, 180, winH);
+    this.commandArea.addChild(win);
+
+    const style = new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 13, fill: COLORS.TEXT });
+    const countStyle = new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.TEXT_DISABLED });
+
+    this.battleItems.forEach((item, i) => {
+      const text = new Text({ text: item.data.name, style });
+      text.x = 32;
+      text.y = 158 + i * 24;
+      this.commandArea.addChild(text);
+
+      const count = new Text({ text: `x${item.count}`, style: countStyle });
+      count.x = 150;
+      count.y = 158 + i * 24;
+      this.commandArea.addChild(count);
+    });
+
+    const cursor = new Text({
+      text: '▶',
+      style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.CURSOR }),
+    });
+    cursor.x = 16;
+    cursor.y = 160 + this.itemCursor * 24;
+    this.commandArea.addChild(cursor);
+
+    this.container.addChild(this.commandArea);
+  }
+
+  private handleBattleItemInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.itemCursor > 0) {
+      this.itemCursor--;
+      this.drawBattleItemSelect();
+    } else if (dir === 'down' && this.itemCursor < this.battleItems.length - 1) {
+      this.itemCursor++;
+      this.drawBattleItemSelect();
+    }
+
+    if (input.isActionPressed) {
+      this.selectedBattleItem = this.battleItems[this.itemCursor].data;
+      const target = this.selectedBattleItem.target;
+
+      if (target === 'oneAlly' || target === 'self') {
+        // 味方選択へ
+        this.phase = 'battleItemTarget';
+        this.allyTargetCursor = 0;
+        this.drawAllyTargetSelect();
+      } else {
+        // allAllies等: 即決定（最初のメンバーをターゲットに記録）
+        this.partyActions.push({ type: 'item', itemId: this.selectedBattleItem.id, targetIndex: 0 });
+        this.nextMemberOrExecute();
+      }
+    }
+
+    if (input.isCancelPressed) {
+      this.phase = 'command';
+      this.commandCursor = 0;
+      this.drawCommandWindow();
+    }
+  }
+
+  private drawAllyTargetSelect(): void {
+    this.commandArea.removeChildren();
+
+    const party = this.battleState.party;
+    const winH = party.length * 24 + 12;
+    const win = new Window(8, 150, 200, winH);
+    this.commandArea.addChild(win);
+
+    const style = new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 13, fill: COLORS.TEXT });
+
+    party.forEach((m, i) => {
+      const hpColor = m.hp <= 0 ? COLORS.HP_RED : m.hp < m.maxHp * 0.3 ? COLORS.HP_YELLOW : COLORS.HP_GREEN;
+      const text = new Text({ text: m.name, style });
+      text.x = 32;
+      text.y = 158 + i * 24;
+      this.commandArea.addChild(text);
+
+      const hp = new Text({
+        text: `HP${m.hp}/${m.maxHp}`,
+        style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: hpColor }),
+      });
+      hp.x = 110;
+      hp.y = 158 + i * 24;
+      this.commandArea.addChild(hp);
+    });
+
+    const cursor = new Text({
+      text: '▶',
+      style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.CURSOR }),
+    });
+    cursor.x = 16;
+    cursor.y = 160 + this.allyTargetCursor * 24;
+    this.commandArea.addChild(cursor);
+
+    this.container.addChild(this.commandArea);
+  }
+
+  private handleBattleItemTargetInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const party = this.battleState.party;
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.allyTargetCursor > 0) {
+      this.allyTargetCursor--;
+      this.drawAllyTargetSelect();
+    } else if (dir === 'down' && this.allyTargetCursor < party.length - 1) {
+      this.allyTargetCursor++;
+      this.drawAllyTargetSelect();
+    }
+
+    if (input.isActionPressed && this.selectedBattleItem) {
+      this.partyActions.push({ type: 'item', itemId: this.selectedBattleItem.id, targetIndex: this.allyTargetCursor });
+      this.nextMemberOrExecute();
+    }
+
+    if (input.isCancelPressed) {
+      this.phase = 'battleItem';
+      this.drawBattleItemSelect();
     }
   }
 
@@ -417,6 +586,9 @@ export class BattleScene extends Scene {
               messages: [`${m.name}は みをまもっている。`],
               targetDied: false,
             };
+          }
+          if (action.type === 'item' && action.itemId) {
+            return this.executeItemAction(m, action.itemId, action.targetIndex ?? i);
           }
           return this.emptyResult(m.name);
         },
@@ -564,6 +736,60 @@ export class BattleScene extends Scene {
       this.phase = 'defeat';
       this.messageText.text = '▼ つづける';
     });
+  }
+
+  private executeItemAction(actor: PartyMember, itemId: string, targetIndex: number): ActionResult {
+    const itemData = this.itemDataMap.get(itemId);
+    if (!itemData) return this.emptyResult(actor.name);
+
+    const messages: string[] = [`${actor.name}は ${itemData.name}を つかった！`];
+
+    if (itemData.type === 'heal' && itemData.effect.hp) {
+      const target = this.battleState.party[targetIndex];
+      if (target.hp <= 0) {
+        messages.push(`しかし ${target.name}は しんでいる！`);
+      } else {
+        const healAmount = Math.min(itemData.effect.hp, target.maxHp - target.hp);
+        target.hp = Math.min(target.maxHp, target.hp + healAmount);
+        this.game.state.useItem(itemId);
+        messages.push(`${target.name}の HPが ${healAmount} かいふくした！`);
+      }
+    } else if (itemData.type === 'status_cure' && itemData.effect.cureStatus) {
+      const target = this.battleState.party[targetIndex];
+      const cured = target.statusEffects.filter((s) =>
+        itemData.effect.cureStatus!.includes(s.type)
+      );
+      if (cured.length === 0) {
+        messages.push('しかし なにも おこらなかった！');
+      } else {
+        target.statusEffects = target.statusEffects.filter(
+          (s) => !itemData.effect.cureStatus!.includes(s.type)
+        );
+        this.game.state.useItem(itemId);
+        messages.push(`${target.name}の じょうたいが かいふくした！`);
+      }
+    } else if (itemData.type === 'revive') {
+      const target = this.battleState.party[targetIndex];
+      if (target.hp > 0) {
+        messages.push(`${target.name}は いきている！`);
+      } else {
+        const reviveHp = Math.floor(target.maxHp * (itemData.effect.reviveHpPercent ?? 0.5));
+        target.hp = Math.max(1, reviveHp);
+        this.game.state.useItem(itemId);
+        messages.push(`${target.name}は いきかえった！`);
+      }
+    } else {
+      messages.push('しかし なにも おこらなかった！');
+    }
+
+    return {
+      action: { type: 'attack' as const, actor: 'party' as const, actorIndex: 0 },
+      actorName: actor.name,
+      missed: false,
+      critical: false,
+      messages,
+      targetDied: false,
+    };
   }
 
   private emptyResult(actorName: string): ActionResult {
