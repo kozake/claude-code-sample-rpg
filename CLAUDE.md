@@ -24,7 +24,7 @@ npx tsc --noEmit     # 型チェックのみ
 ## 重要な技術仕様
 
 - **解像度**: 320×568px、CSS transformでスケーリング
-- **タイルサイズ**: 16×16px
+- **タイルサイズ**: 32×32px（表示サイズ。元画像は16×16pxでスケーリング表示）
 - **フォント**: DotGothic16 (Google Fonts CDN)
 - **PixiJS v8**: `app.init()` は async、`preference: 'webgl'`
 - **BASE_URL**: `import.meta.env.BASE_URL` で GitHub Pages のパス解決

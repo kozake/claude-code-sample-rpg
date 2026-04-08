@@ -78,8 +78,10 @@ export class Entity {
         this.spriteFrames.push(rowFrames);
       }
 
-      // 最初のフレームでSpriteを作成
+      // 最初のフレームでSpriteを作成（TILE_SIZEに合わせてスケーリング）
       this.imageSprite = new Sprite(this.spriteFrames[0][0]);
+      this.imageSprite.width = TILE_SIZE;
+      this.imageSprite.height = TILE_SIZE;
       this.container.addChild(this.imageSprite);
 
       // フォールバックを非表示
