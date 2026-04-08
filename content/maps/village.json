@@ -61,7 +61,7 @@
     ]
   },
   "bgm": "village",
-  "playerStart": { "x": 8, "y": 14 },
+  "playerStart": { "x": 8, "y": 13 },
   "npcs": [
     { "id": "village_elder", "x": 8, "y": 3, "direction": "down" },
     { "id": "weapon_shop", "x": 4, "y": 6, "direction": "down" },
