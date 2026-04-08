@@ -23,6 +23,7 @@ export class ChurchScene extends Scene {
   private currentMap: string;
   private playerX: number;
   private playerY: number;
+  private overlayScene: Scene | null = null;
 
   constructor(game: Game, onClose: () => void, currentMap: string, playerX: number, playerY: number) {
     super(game);
@@ -75,9 +76,16 @@ export class ChurchScene extends Scene {
     this.cursorText.y = 92 + this.cursorIndex * 26;
   }
 
-  update(_delta: number): void {
+  update(delta: number): void {
     const input = this.game.input;
     input.update();
+
+    // オーバーレイ（セーブスロット画面）がある場合はそちらに入力を委譲
+    if (this.overlayScene) {
+      this.overlayScene.update(delta);
+      input.resetOneShot();
+      return;
+    }
 
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.cursorIndex > 0) {
@@ -120,13 +128,17 @@ export class ChurchScene extends Scene {
           this.playerY,
           this.game.state.playTime
         );
+        this.overlayScene = null;
+        this.drawMenu();
         this.msgText.text = 'おいのりを ささげました。\nぼうけんのしょに きろくしました。';
-        // 戻る
-        setTimeout(() => this.drawMenu(), 0);
       },
-      () => this.drawMenu()
+      () => {
+        this.overlayScene = null;
+        this.drawMenu();
+      }
     );
     // オーバーレイとして表示
+    this.overlayScene = saveScene;
     this.container.removeChildren();
     this.container.addChild(saveScene.container);
     saveScene.onEnter();
