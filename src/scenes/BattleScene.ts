@@ -4,6 +4,7 @@ import { Window } from '../ui/Window';
 import { DPad } from '../ui/DPad';
 import { ActionButton } from '../ui/ActionButton';
 import { BattleState, type ActionResult } from '../battle/BattleState';
+import { BattleEffects } from '../effects/BattleEffects';
 import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
@@ -12,6 +13,17 @@ import type { EnemyData, PartyMember, ItemData } from '../data/types';
 const BASE = import.meta.env.BASE_URL;
 
 type BattlePhase = 'start' | 'command' | 'target' | 'battleItem' | 'battleItemTarget' | 'executing' | 'result' | 'victory' | 'defeat';
+
+/** 戦闘背景のパーティクル */
+interface BgParticle {
+  x: number;
+  y: number;
+  speed: number;
+  size: number;
+  brightness: number;
+  twinklePhase: number;
+  twinkleSpeed: number;
+}
 
 const COMMANDS = ['たたかう', 'じゅもん', 'どうぐ', 'ぼうぎょ', 'にげる'] as const;
 
@@ -44,6 +56,18 @@ export class BattleScene extends Scene {
   private statusArea = new Container();
   private commandArea = new Container();
   private messageArea = new Container();
+  private effectLayer = new Container();
+
+  // エフェクトシステム
+  private effects!: BattleEffects;
+
+  // 背景パーティクル
+  private bgParticles: BgParticle[] = [];
+  private bgGraphics = new Graphics();
+  private bgAnimTimer = 0;
+
+  // アクション結果キュー（エフェクト連携用）
+  private actionResultQueue: ActionResult[] = [];
 
   constructor(game: Game, enemies: EnemyData[], onBattleEnd: (victory: boolean) => void) {
     super(game);
@@ -73,11 +97,19 @@ export class BattleScene extends Scene {
     this.drawPartyStatus();
     this.drawMessageWindow();
 
+    // エフェクトレイヤー（UIの上に配置）
+    this.container.addChild(this.effectLayer);
+    this.effects = new BattleEffects(this.effectLayer);
+
     // タッチUI（DPad + A/Bボタン）
     const dpad = new DPad(this.game.input);
     const actionBtn = new ActionButton(this.game.input);
     this.container.addChild(dpad.container);
     this.container.addChild(actionBtn.container);
+
+    // 戦闘開始SE + トランジション
+    this.game.audio.playSynth('battleStart');
+    await this.effects.battleTransition();
 
     // 開始メッセージ
     const enemyNames = this.battleState.enemies.map((e) => e.data.name).join('と ');
@@ -90,9 +122,34 @@ export class BattleScene extends Scene {
   }
 
   private drawBackground(): void {
+    // グラデーション背景（上:ダークネイビー → 下:ダークパープル）
     const bg = new Graphics();
-    bg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill(0x111122);
+    const gradientSteps = 16;
+    const stepH = Math.ceil(GAME_HEIGHT / gradientSteps);
+    for (let i = 0; i < gradientSteps; i++) {
+      const t = i / (gradientSteps - 1);
+      const r = Math.floor(0x08 + (0x1a - 0x08) * t);
+      const g = Math.floor(0x08 + (0x0a - 0x08) * t);
+      const b = Math.floor(0x22 + (0x30 - 0x22) * t);
+      const color = (r << 16) | (g << 8) | b;
+      bg.rect(0, i * stepH, GAME_WIDTH, stepH + 1).fill(color);
+    }
     this.container.addChild(bg);
+
+    // 背景パーティクル（星/光の粒）初期化
+    this.bgParticles = [];
+    for (let i = 0; i < 30; i++) {
+      this.bgParticles.push({
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT * 0.45,
+        speed: 0.1 + Math.random() * 0.3,
+        size: Math.random() < 0.3 ? 2 : 1,
+        brightness: 0.3 + Math.random() * 0.7,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.02 + Math.random() * 0.04,
+      });
+    }
+    this.container.addChild(this.bgGraphics);
   }
 
   private drawEnemies(): void {
@@ -283,13 +340,17 @@ export class BattleScene extends Scene {
     }
   }
 
-  update(_delta: number): void {
+  update(delta: number): void {
     const input = this.game.input;
     input.update();
+
+    // 背景パーティクルアニメーション
+    this.updateBackground(delta);
 
     switch (this.phase) {
       case 'result':
         if (input.isActionPressed) {
+          this.game.audio.playSynth('confirm');
           this.advanceMessage();
         }
         break;
@@ -313,6 +374,7 @@ export class BattleScene extends Scene {
       case 'victory':
       case 'defeat':
         if (input.isActionPressed) {
+          this.game.audio.playSynth('confirm');
           this.onBattleEnd(this.phase === 'victory');
         }
         break;
@@ -321,17 +383,44 @@ export class BattleScene extends Scene {
     input.resetOneShot();
   }
 
+  /** 背景パーティクルアニメーション更新 */
+  private updateBackground(delta: number): void {
+    this.bgAnimTimer += delta * 0.016;
+    this.bgGraphics.clear();
+
+    for (const p of this.bgParticles) {
+      p.twinklePhase += p.twinkleSpeed * delta;
+      const alpha = p.brightness * (0.5 + 0.5 * Math.sin(p.twinklePhase));
+      p.y += p.speed * delta * 0.1;
+
+      // 画面下に行ったら上に戻す
+      if (p.y > GAME_HEIGHT * 0.45) {
+        p.y = 0;
+        p.x = Math.random() * GAME_WIDTH;
+      }
+
+      this.bgGraphics.circle(p.x, p.y, p.size).fill({ color: 0xaaccff, alpha });
+      // 大きいパーティクルはグロウエフェクト
+      if (p.size >= 2) {
+        this.bgGraphics.circle(p.x, p.y, p.size + 1).fill({ color: 0x6688cc, alpha: alpha * 0.3 });
+      }
+    }
+  }
+
   private handleCommandInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.commandCursor > 0) {
       this.commandCursor--;
+      this.game.audio.playSynth('cursor');
       this.drawCommandWindow();
     } else if (dir === 'down' && this.commandCursor < COMMANDS.length - 1) {
       this.commandCursor++;
+      this.game.audio.playSynth('cursor');
       this.drawCommandWindow();
     }
 
     if (input.isActionPressed) {
+      this.game.audio.playSynth('confirm');
       switch (this.commandCursor) {
         case 0: // たたかう
           this.phase = 'target';
@@ -357,6 +446,7 @@ export class BattleScene extends Scene {
     }
 
     if (input.isCancelPressed && this.currentMemberIdx > 0) {
+      this.game.audio.playSynth('cancel');
       // 前のメンバーに戻る
       this.partyActions.pop();
       this.currentMemberIdx = this.findPrevAliveMember(this.currentMemberIdx);
@@ -373,19 +463,23 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.targetCursor > 0) {
       this.targetCursor--;
+      this.game.audio.playSynth('cursor');
       this.drawTargetSelect();
     } else if (dir === 'down' && this.targetCursor < aliveEnemies.length - 1) {
       this.targetCursor++;
+      this.game.audio.playSynth('cursor');
       this.drawTargetSelect();
     }
 
     if (input.isActionPressed) {
+      this.game.audio.playSynth('confirm');
       const target = aliveEnemies[this.targetCursor];
       this.partyActions.push({ type: 'attack', targetIndex: target.index });
       this.nextMemberOrExecute();
     }
 
     if (input.isCancelPressed) {
+      this.game.audio.playSynth('cancel');
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
@@ -449,29 +543,31 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.itemCursor > 0) {
       this.itemCursor--;
+      this.game.audio.playSynth('cursor');
       this.drawBattleItemSelect();
     } else if (dir === 'down' && this.itemCursor < this.battleItems.length - 1) {
       this.itemCursor++;
+      this.game.audio.playSynth('cursor');
       this.drawBattleItemSelect();
     }
 
     if (input.isActionPressed) {
+      this.game.audio.playSynth('confirm');
       this.selectedBattleItem = this.battleItems[this.itemCursor].data;
       const target = this.selectedBattleItem.target;
 
       if (target === 'oneAlly' || target === 'self') {
-        // 味方選択へ
         this.phase = 'battleItemTarget';
         this.allyTargetCursor = 0;
         this.drawAllyTargetSelect();
       } else {
-        // allAllies等: 即決定（最初のメンバーをターゲットに記録）
         this.partyActions.push({ type: 'item', itemId: this.selectedBattleItem.id, targetIndex: 0 });
         this.nextMemberOrExecute();
       }
     }
 
     if (input.isCancelPressed) {
+      this.game.audio.playSynth('cancel');
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
@@ -520,18 +616,22 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.allyTargetCursor > 0) {
       this.allyTargetCursor--;
+      this.game.audio.playSynth('cursor');
       this.drawAllyTargetSelect();
     } else if (dir === 'down' && this.allyTargetCursor < party.length - 1) {
       this.allyTargetCursor++;
+      this.game.audio.playSynth('cursor');
       this.drawAllyTargetSelect();
     }
 
     if (input.isActionPressed && this.selectedBattleItem) {
+      this.game.audio.playSynth('confirm');
       this.partyActions.push({ type: 'item', itemId: this.selectedBattleItem.id, targetIndex: this.allyTargetCursor });
       this.nextMemberOrExecute();
     }
 
     if (input.isCancelPressed) {
+      this.game.audio.playSynth('cancel');
       this.phase = 'battleItem';
       this.drawBattleItemSelect();
     }
@@ -568,7 +668,6 @@ export class BattleScene extends Scene {
         speed: m.speed + Math.random() * 10,
         execute: () => {
           if (action.type === 'attack' && action.targetIndex !== undefined) {
-            // ターゲットが倒されていたら別の敵を狙う
             let targetIdx = action.targetIndex;
             if (!this.battleState.enemies[targetIdx].isAlive) {
               const alive = this.battleState.enemies.findIndex((e) => e.isAlive);
@@ -607,13 +706,12 @@ export class BattleScene extends Scene {
     // 速度順ソート
     allActions.sort((a, b) => b.speed - a.speed);
 
-    // 順次実行して結果メッセージを収集
-    const allMessages: string[] = [];
+    // 順次実行して結果を収集（エフェクト連携用）
+    this.actionResultQueue = [];
     for (const action of allActions) {
       if (this.battleState.isOver) break;
       const result = action.execute();
-      allMessages.push(...result.messages);
-
+      this.actionResultQueue.push(result);
       const status = this.battleState.checkBattleEnd();
       if (status !== 'continue') break;
     }
@@ -621,19 +719,18 @@ export class BattleScene extends Scene {
     // ぼうぎょリセット
     this.battleState.partyDefending.clear();
 
-    // ステータス更新
-    this.drawPartyStatus();
-    this.drawEnemies();
+    // アクション結果を1つずつエフェクト付きで表示
+    this.showActionResultSequence(0, () => {
+      // ステータス最終更新
+      this.drawPartyStatus();
+      this.drawEnemies();
 
-    // 結果メッセージ表示
-    this.showMessages(allMessages, () => {
       const status = this.battleState.checkBattleEnd();
       if (status === 'victory') {
         this.showVictory();
       } else if (status === 'defeat') {
         this.showDefeat();
       } else {
-        // 次のターン
         this.currentMemberIdx = this.findNextAliveMember(-1);
         this.partyActions = [];
         this.commandCursor = 0;
@@ -643,8 +740,105 @@ export class BattleScene extends Scene {
     });
   }
 
+  /** アクション結果を1つずつエフェクト付きで表示 */
+  private showActionResultSequence(idx: number, onComplete: () => void): void {
+    if (idx >= this.actionResultQueue.length) {
+      onComplete();
+      return;
+    }
+
+    const result = this.actionResultQueue[idx];
+    if (result.messages.length === 0) {
+      this.showActionResultSequence(idx + 1, onComplete);
+      return;
+    }
+
+    // アクションに応じたエフェクトとSEを再生
+    this.playActionEffects(result);
+
+    // ステータス中間更新
+    this.drawPartyStatus();
+    this.drawEnemies();
+
+    // メッセージ表示後に次のアクションへ
+    this.showMessages(result.messages, () => {
+      this.showActionResultSequence(idx + 1, onComplete);
+    });
+  }
+
+  /** アクション結果に応じたエフェクトとSE再生 */
+  private playActionEffects(result: ActionResult): void {
+    if (result.action.type === 'defend') {
+      this.game.audio.playSynth('defend');
+      return;
+    }
+
+    if (result.missed) {
+      this.game.audio.playSynth('miss');
+      return;
+    }
+
+    const isPartyAttack = result.action.actor === 'party' && result.action.type === 'attack';
+    const isEnemyAttack = result.action.actor === 'enemy' && result.action.type === 'attack';
+
+    if (isPartyAttack && result.damage && result.damage > 0) {
+      // 味方の攻撃 → 敵にエフェクト
+      const enemyIdx = result.action.targetIndex ?? 0;
+      const enemyPos = this.getEnemyPosition(enemyIdx);
+
+      if (result.critical) {
+        this.game.audio.playSynth('critical');
+        this.effects.flash(0xffff00, 0.5, 300);
+        this.effects.shake(this.enemyArea, 8, 400);
+        this.effects.showSlash(enemyPos.x, enemyPos.y);
+        this.effects.showDamage(enemyPos.x, enemyPos.y - 25, result.damage, true);
+      } else {
+        this.game.audio.playSynth('attack');
+        this.effects.flash(0xffffff, 0.3, 150);
+        this.effects.shake(this.enemyArea, 3, 200);
+        this.effects.showSlash(enemyPos.x, enemyPos.y);
+        this.effects.showDamage(enemyPos.x, enemyPos.y - 25, result.damage, false);
+      }
+
+      if (result.targetDied) {
+        this.game.audio.playSynth('enemyDeath');
+      }
+    }
+
+    if (isEnemyAttack && result.damage && result.damage > 0) {
+      // 敵の攻撃 → 画面シェイク + 赤フラッシュ
+      if (result.critical) {
+        this.game.audio.playSynth('critical');
+        this.effects.flash(0xff0000, 0.5, 300);
+        this.effects.shake(this.container, 6, 400);
+      } else {
+        this.game.audio.playSynth('damage');
+        this.effects.flash(0xff0000, 0.3, 200);
+        this.effects.shake(this.container, 3, 200);
+      }
+    }
+
+    // 回復系アイテム
+    if (result.healed && result.healed > 0) {
+      this.game.audio.playSynth('heal');
+      this.effects.flash(0x00ff88, 0.2, 300);
+      this.effects.showHealSparkle(GAME_WIDTH / 2, GAME_HEIGHT - 160);
+    }
+  }
+
+  /** 敵の表示位置を取得 */
+  private getEnemyPosition(enemyIdx: number): { x: number; y: number } {
+    const total = this.battleState.enemies.length;
+    const ex = GAME_WIDTH / 2 - ((total - 1) * 70) / 2 + enemyIdx * 70;
+    const ey = 80;
+    return { x: ex, y: ey };
+  }
+
   private executeFlee(): void {
     const result = this.battleState.attemptFlee();
+    if (result.success) {
+      this.game.audio.playSynth('flee');
+    }
     this.showMessages(result.messages, () => {
       if (result.success) {
         this.onBattleEnd(false);
@@ -685,6 +879,10 @@ export class BattleScene extends Scene {
   }
 
   private showVictory(): void {
+    // 勝利エフェクト
+    this.effects.victoryFlash();
+    this.game.audio.playSynth('victory');
+
     const rewards = this.battleState.getVictoryRewards();
     const messages: string[] = [];
     messages.push('てきを やっつけた！');
@@ -717,9 +915,15 @@ export class BattleScene extends Scene {
     }
 
     // レベルアップチェック
+    let hasLevelUp = false;
     for (const member of this.game.state.active) {
       const results = this.game.levelUp.processAllLevelUps(member);
       for (const result of results) {
+        if (!hasLevelUp) {
+          hasLevelUp = true;
+          this.game.audio.playSynth('levelUp');
+          this.effects.flash(0xffff00, 0.4, 500);
+        }
         messages.push(...LevelUpSystem.generateMessages(result));
       }
     }
@@ -732,6 +936,8 @@ export class BattleScene extends Scene {
   }
 
   private showDefeat(): void {
+    // 全滅エフェクト（暗転）
+    this.effects.flash(0xff0000, 0.6, 800);
     this.showMessages(['ぜんめつしてしまった...'], () => {
       this.phase = 'defeat';
       this.messageText.text = '▼ つづける';

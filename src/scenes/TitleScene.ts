@@ -10,12 +10,32 @@ import type { CutsceneData } from '../data/types';
 
 const MENU_ITEMS = ['はじめから', 'つづきから', 'ぼうけんのしょをけす'] as const;
 
+/** タイトル画面の星 */
+interface TitleStar {
+  x: number;
+  y: number;
+  size: number;
+  brightness: number;
+  twinklePhase: number;
+  twinkleSpeed: number;
+  driftX: number;
+  driftY: number;
+}
+
 export class TitleScene extends Scene {
   private cursorIndex = 0;
   private cursorGraphic!: Graphics;
   private menuTexts: Text[] = [];
   private blinkTimer = 0;
   private inputEnabled = true;
+
+  // アニメーション用
+  private stars: TitleStar[] = [];
+  private starsGraphics = new Graphics();
+  private titleText!: Text;
+  private titleShadow!: Text;
+  private subText!: Text;
+  private titleTimer = 0;
 
   constructor(game: Game) {
     super(game);
@@ -26,60 +46,92 @@ export class TitleScene extends Scene {
     this.drawTitle();
     this.drawMenu();
     this.setupInput();
+
+    // タイトルBGM再生
+    this.game.audio.playBgm('title');
   }
 
   private drawBackground(): void {
+    // グラデーション背景（上:暗い紺 → 下:暗い紫）
     const bg = new Graphics();
-    bg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    bg.fill(COLORS.BLACK);
+    const gradientSteps = 20;
+    const stepH = Math.ceil(GAME_HEIGHT / gradientSteps);
+    for (let i = 0; i < gradientSteps; i++) {
+      const t = i / (gradientSteps - 1);
+      const r = Math.floor(0x02 + (0x10 - 0x02) * t);
+      const g = Math.floor(0x02 + (0x05 - 0x02) * t);
+      const b = Math.floor(0x18 + (0x28 - 0x18) * t);
+      const color = (r << 16) | (g << 8) | b;
+      bg.rect(0, i * stepH, GAME_WIDTH, stepH + 1).fill(color);
+    }
     this.container.addChild(bg);
 
-    // 星空風の装飾（placeholder）
-    const stars = new Graphics();
-    for (let i = 0; i < 40; i++) {
-      const x = Math.random() * GAME_WIDTH;
-      const y = Math.random() * (GAME_HEIGHT * 0.5);
-      const size = Math.random() < 0.3 ? 2 : 1;
-      stars.rect(x, y, size, size);
-      stars.fill(COLORS.WHITE);
+    // 星空アニメーション用の星を生成
+    this.stars = [];
+    for (let i = 0; i < 60; i++) {
+      this.stars.push({
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT * 0.7,
+        size: Math.random() < 0.15 ? 2.5 : Math.random() < 0.4 ? 1.5 : 1,
+        brightness: 0.2 + Math.random() * 0.8,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.01 + Math.random() * 0.03,
+        driftX: (Math.random() - 0.5) * 0.05,
+        driftY: Math.random() * 0.02 + 0.01,
+      });
     }
-    this.container.addChild(stars);
+    this.container.addChild(this.starsGraphics);
   }
 
   private drawTitle(): void {
-    const titleStyle = new TextStyle({
-      fontFamily: FONT_FAMILY,
-      fontSize: 20,
-      fill: COLORS.WHITE,
-      align: 'center',
-      letterSpacing: 2,
-    });
-
-    const title = new Text({
+    // タイトル影（グロウ効果）
+    this.titleShadow = new Text({
       text: 'ドラゴンクエスト風\nRPG',
-      style: titleStyle,
+      style: new TextStyle({
+        fontFamily: FONT_FAMILY,
+        fontSize: 20,
+        fill: 0x4466aa,
+        align: 'center',
+        letterSpacing: 2,
+      }),
     });
-    title.anchor.set(0.5);
-    title.x = GAME_WIDTH / 2;
-    title.y = GAME_HEIGHT * 0.25;
-    this.container.addChild(title);
+    this.titleShadow.anchor.set(0.5);
+    this.titleShadow.x = GAME_WIDTH / 2;
+    this.titleShadow.y = GAME_HEIGHT * 0.25 + 2;
+    this.titleShadow.alpha = 0.6;
+    this.container.addChild(this.titleShadow);
 
-    // サブタイトル
-    const subStyle = new TextStyle({
-      fontFamily: FONT_FAMILY,
-      fontSize: 10,
-      fill: COLORS.TEXT_DISABLED,
-      align: 'center',
+    // タイトル本体（金色）
+    this.titleText = new Text({
+      text: 'ドラゴンクエスト風\nRPG',
+      style: new TextStyle({
+        fontFamily: FONT_FAMILY,
+        fontSize: 20,
+        fill: 0xffdd44,
+        align: 'center',
+        letterSpacing: 2,
+        stroke: { color: 0x884400, width: 1 },
+      }),
     });
+    this.titleText.anchor.set(0.5);
+    this.titleText.x = GAME_WIDTH / 2;
+    this.titleText.y = GAME_HEIGHT * 0.25;
+    this.container.addChild(this.titleText);
 
-    const sub = new Text({
+    // サブタイトル（フェードイン風の色）
+    this.subText = new Text({
       text: '~ そして伝説へ ~',
-      style: subStyle,
+      style: new TextStyle({
+        fontFamily: FONT_FAMILY,
+        fontSize: 10,
+        fill: 0xaabbdd,
+        align: 'center',
+      }),
     });
-    sub.anchor.set(0.5);
-    sub.x = GAME_WIDTH / 2;
-    sub.y = GAME_HEIGHT * 0.37;
-    this.container.addChild(sub);
+    this.subText.anchor.set(0.5);
+    this.subText.x = GAME_WIDTH / 2;
+    this.subText.y = GAME_HEIGHT * 0.37;
+    this.container.addChild(this.subText);
   }
 
   private drawMenu(): void {
@@ -208,11 +260,13 @@ export class TitleScene extends Scene {
 
   private moveCursor(dir: number): void {
     this.cursorIndex = (this.cursorIndex + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
+    this.game.audio.playSynth('cursor');
     this.updateCursorPosition();
   }
 
   private selectItem(index: number): void {
     this.inputEnabled = false;
+    this.game.audio.playSynth('confirm');
 
     switch (index) {
       case 0:
@@ -303,6 +357,43 @@ export class TitleScene extends Scene {
     if (this.blinkTimer > 30) {
       this.cursorGraphic.visible = !this.cursorGraphic.visible;
       this.blinkTimer = 0;
+    }
+
+    // タイトルアニメーション
+    this.titleTimer += delta * 0.016;
+
+    // タイトル文字のゆっくりパルス
+    const pulse = 1 + Math.sin(this.titleTimer * 1.5) * 0.03;
+    this.titleText.scale.set(pulse);
+    this.titleShadow.scale.set(pulse * 1.05);
+    this.titleShadow.alpha = 0.4 + Math.sin(this.titleTimer * 2) * 0.2;
+
+    // サブタイトルのフェード
+    this.subText.alpha = 0.6 + Math.sin(this.titleTimer * 1.2) * 0.3;
+
+    // 星空アニメーション
+    this.starsGraphics.clear();
+    for (const star of this.stars) {
+      star.twinklePhase += star.twinkleSpeed * delta;
+      star.x += star.driftX * delta;
+      star.y += star.driftY * delta;
+
+      // 画面外に出たら上に戻す
+      if (star.y > GAME_HEIGHT * 0.7) {
+        star.y = 0;
+        star.x = Math.random() * GAME_WIDTH;
+      }
+      if (star.x < 0) star.x = GAME_WIDTH;
+      if (star.x > GAME_WIDTH) star.x = 0;
+
+      const alpha = star.brightness * (0.3 + 0.7 * Math.abs(Math.sin(star.twinklePhase)));
+
+      // 大きい星はグロウ付き
+      if (star.size >= 2) {
+        this.starsGraphics.circle(star.x, star.y, star.size + 2).fill({ color: 0x6688cc, alpha: alpha * 0.2 });
+        this.starsGraphics.circle(star.x, star.y, star.size + 1).fill({ color: 0x88aadd, alpha: alpha * 0.3 });
+      }
+      this.starsGraphics.circle(star.x, star.y, star.size).fill({ color: 0xeeeeff, alpha });
     }
   }
 
