@@ -103,7 +103,7 @@
     ]
   },
   "bgm": "field",
-  "playerStart": { "x": 15, "y": 15 },
+  "playerStart": { "x": 14, "y": 5 },
   "encounterRate": 15,
   "encounters": [
     { "groupId": "slime_single", "weight": 40 },

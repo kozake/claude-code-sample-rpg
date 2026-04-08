@@ -226,13 +226,14 @@ export class TitleScene extends Scene {
           const cutsceneData = await this.game.content.loadJson<CutsceneData>('story/cutscenes/opening.json');
           if (cutsceneData) {
             const cutscene = new CutsceneScene(this.game, cutsceneData, () => {
-              const field = new FieldScene(this.game, 'world');
+              // オープニング後は村の中から開始（DQ風）
+              const field = new FieldScene(this.game, 'village', 8, 8);
               this.game.scenes.switchTo(field);
             });
             this.game.scenes.switchTo(cutscene);
           } else {
-            // カットシーンデータがなければ直接フィールドへ
-            const field = new FieldScene(this.game, 'world');
+            // カットシーンデータがなければ直接村へ
+            const field = new FieldScene(this.game, 'village', 8, 8);
             this.game.scenes.switchTo(field);
           }
         });
