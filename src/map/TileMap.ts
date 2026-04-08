@@ -38,15 +38,17 @@ export class TileMap {
         const url = `${BASE}assets/sprites/tilesets/${mapData.tileset}.png`;
         const tex: Texture = await Assets.load(url);
 
-        const tilesPerRow = Math.floor(tex.width / TILE_SIZE);
-        const totalTiles = tilesPerRow * Math.floor(tex.height / TILE_SIZE);
+        // 元画像のタイルサイズ（16px）で切り出し
+        const srcSize = mapData.tileSize ?? 16;
+        const tilesPerRow = Math.floor(tex.width / srcSize);
+        const totalTiles = tilesPerRow * Math.floor(tex.height / srcSize);
 
         for (let i = 0; i < totalTiles; i++) {
           const col = i % tilesPerRow;
           const row = Math.floor(i / tilesPerRow);
           const frame = new Texture({
             source: tex.source,
-            frame: new Rectangle(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE),
+            frame: new Rectangle(col * srcSize, row * srcSize, srcSize, srcSize),
           });
           this.tileTextures.push(frame);
         }
@@ -74,6 +76,8 @@ export class TileMap {
           const sprite = new Sprite(tex);
           sprite.x = x * TILE_SIZE;
           sprite.y = y * TILE_SIZE;
+          sprite.width = TILE_SIZE;
+          sprite.height = TILE_SIZE;
           layerContainer.addChild(sprite);
         }
       }

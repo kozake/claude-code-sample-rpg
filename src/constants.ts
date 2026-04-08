@@ -1,6 +1,6 @@
 export const GAME_WIDTH = 320;
 export const GAME_HEIGHT = 568;
-export const TILE_SIZE = 16;
+export const TILE_SIZE = 32;
 export const MAX_PARTY = 4;
 export const SAVE_SLOTS = 3;
 export const MAX_ITEM_SLOTS = 20;
