@@ -24,6 +24,7 @@ export class TileMap {
     5: 0xdaa520, // 砂（黄土）
     6: 0x2f4f2f, // 森（暗緑）
     7: 0xffd700, // 特殊タイル（金）
+    8: 0x1a0a00, // 洞窟入口（暗黒）
   };
 
   async load(mapData: MapData): Promise<void> {
