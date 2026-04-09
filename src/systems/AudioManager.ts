@@ -1,11 +1,12 @@
 import { Howl, Howler } from 'howler';
+import { SoundGenerator } from './SoundGenerator';
 
 const BASE = import.meta.env.BASE_URL;
 
 /**
  * オーディオ管理
  * - BGM再生（ループ、フェードイン/アウト）
- * - SE再生
+ * - SE再生（ファイル or Web Audio API合成）
  * - iOS Safari対応（ユーザー操作でアンロック）
  */
 export class AudioManager {
@@ -16,6 +17,7 @@ export class AudioManager {
   private seVolume = 0.7;
   private bgmCache = new Map<string, Howl>();
   private seCache = new Map<string, Howl>();
+  readonly synth = new SoundGenerator();
 
   /** iOS Safari等でオーディオコンテキストをアンロック */
   unlock(): void {
@@ -90,6 +92,12 @@ export class AudioManager {
   /** SE音量設定 */
   setSeVolume(vol: number): void {
     this.seVolume = Math.max(0, Math.min(1, vol));
+    this.synth.setVolume(vol);
+  }
+
+  /** 合成SE再生 */
+  playSynth(id: string): void {
+    this.synth.play(id);
   }
 
   private getBgm(id: string): Howl | null {
