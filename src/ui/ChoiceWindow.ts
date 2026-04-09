@@ -54,7 +54,7 @@ export class ChoiceWindow {
 
     this.cursorText = new Text({
       text: '▶',
-      style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.CURSOR }),
+      style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.CURSOR, stroke: { color: 0x442200, width: 1 } }),
     });
     this.updateCursor();
     this.container.addChild(this.cursorText);
