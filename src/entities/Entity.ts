@@ -48,9 +48,21 @@ export class Entity {
     this.tileX = tileX;
     this.tileY = tileY;
 
-    // 仮のスプライト（16x16の矩形）- 画像ロード失敗時のフォールバック
+    // 足元の影
+    const shadow = new Graphics();
+    shadow.ellipse(TILE_SIZE / 2, TILE_SIZE - 2, TILE_SIZE * 0.35, 3)
+      .fill({ color: 0x000000, alpha: 0.25 });
+    this.container.addChild(shadow);
+
+    // 仮のスプライト（角丸矩形 + グラデーション風）- 画像ロード失敗時のフォールバック
     this.fallbackSprite = new Graphics();
-    this.fallbackSprite.rect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4).fill(color);
+    this.fallbackSprite.roundRect(3, 1, TILE_SIZE - 6, TILE_SIZE - 4, 3).fill(color);
+    // 上部ハイライト
+    this.fallbackSprite.roundRect(5, 2, TILE_SIZE - 10, (TILE_SIZE - 4) * 0.35, 2)
+      .fill({ color: 0xffffff, alpha: 0.2 });
+    // 輪郭
+    this.fallbackSprite.roundRect(3, 1, TILE_SIZE - 6, TILE_SIZE - 4, 3)
+      .stroke({ color: 0xffffff, width: 0.5, alpha: 0.3 });
     this.container.addChild(this.fallbackSprite);
 
     this.syncPosition();

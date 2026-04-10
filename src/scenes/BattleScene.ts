@@ -122,31 +122,52 @@ export class BattleScene extends Scene {
   }
 
   private drawBackground(): void {
-    // グラデーション背景（上:ダークネイビー → 下:ダークパープル）
+    // リッチグラデーション背景（暗い紺 → 紫 → 深い藍）
     const bg = new Graphics();
-    const gradientSteps = 16;
+    const gradientSteps = 24;
     const stepH = Math.ceil(GAME_HEIGHT / gradientSteps);
     for (let i = 0; i < gradientSteps; i++) {
       const t = i / (gradientSteps - 1);
-      const r = Math.floor(0x08 + (0x1a - 0x08) * t);
-      const g = Math.floor(0x08 + (0x0a - 0x08) * t);
-      const b = Math.floor(0x22 + (0x30 - 0x22) * t);
+      // 上部は暗い紺、中間に紫味、下部は深い藍
+      const r = Math.floor(0x04 + (0x18 - 0x04) * t * t);
+      const g = Math.floor(0x04 + (0x08 - 0x04) * t);
+      const b = Math.floor(0x18 + (0x38 - 0x18) * Math.sin(t * Math.PI * 0.8));
       const color = (r << 16) | (g << 8) | b;
       bg.rect(0, i * stepH, GAME_WIDTH, stepH + 1).fill(color);
     }
+
+    // 地平線ライン
+    const horizonY = GAME_HEIGHT * 0.4;
+    bg.rect(0, horizonY - 1, GAME_WIDTH, 1).fill({ color: 0x303060, alpha: 0.5 });
+    bg.rect(0, horizonY, GAME_WIDTH, 1).fill({ color: 0x202050, alpha: 0.3 });
+
+    // 地面グラデーション（下半分）
+    const groundSteps = 12;
+    const groundH = GAME_HEIGHT * 0.15;
+    const groundStartY = horizonY;
+    for (let i = 0; i < groundSteps; i++) {
+      const t = i / (groundSteps - 1);
+      const gr = Math.floor(0x0c + t * 0x08);
+      const gg = Math.floor(0x08 + t * 0x04);
+      const gb = Math.floor(0x20 + t * 0x10);
+      const gColor = (gr << 16) | (gg << 8) | gb;
+      bg.rect(0, groundStartY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
+        .fill(gColor);
+    }
+
     this.container.addChild(bg);
 
-    // 背景パーティクル（星/光の粒）初期化
+    // 背景パーティクル（星/光の粒 - より多く、より立体的に）
     this.bgParticles = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
       this.bgParticles.push({
         x: Math.random() * GAME_WIDTH,
-        y: Math.random() * GAME_HEIGHT * 0.45,
-        speed: 0.1 + Math.random() * 0.3,
-        size: Math.random() < 0.3 ? 2 : 1,
-        brightness: 0.3 + Math.random() * 0.7,
+        y: Math.random() * GAME_HEIGHT * 0.38,
+        speed: 0.05 + Math.random() * 0.2,
+        size: Math.random() < 0.1 ? 2.5 : Math.random() < 0.3 ? 1.5 : 0.8,
+        brightness: 0.2 + Math.random() * 0.8,
         twinklePhase: Math.random() * Math.PI * 2,
-        twinkleSpeed: 0.02 + Math.random() * 0.04,
+        twinkleSpeed: 0.015 + Math.random() * 0.035,
       });
     }
     this.container.addChild(this.bgGraphics);
@@ -160,6 +181,11 @@ export class BattleScene extends Scene {
       const ey = 80;
 
       if (enemy.isAlive) {
+        // 足元の影
+        const shadow = new Graphics();
+        shadow.ellipse(ex, ey + 34, 20, 5).fill({ color: 0x000000, alpha: 0.25 });
+        this.enemyArea.addChild(shadow);
+
         // スプライト画像を試みる
         const spriteId = enemy.data.sprite;
         if (spriteId) {
@@ -198,8 +224,16 @@ export class BattleScene extends Scene {
 
   private drawEnemyFallback(ex: number, ey: number): void {
     const rect = new Graphics();
-    rect.rect(ex - 16, ey - 16, 32, 32).fill(0xcc3333);
-    rect.rect(ex - 16, ey - 16, 32, 32).stroke({ color: COLORS.WHITE, width: 1 });
+    // シャドウ
+    rect.ellipse(ex, ey + 20, 16, 4).fill({ color: 0x000000, alpha: 0.3 });
+    // ボディ（グラデーション風）
+    rect.roundRect(ex - 16, ey - 16, 32, 32, 4).fill(0x882233);
+    rect.roundRect(ex - 15, ey - 15, 30, 14, 3).fill({ color: 0xcc4455, alpha: 0.5 });
+    // 目（2つの光点）
+    rect.circle(ex - 5, ey - 4, 2).fill(0xffee88);
+    rect.circle(ex + 5, ey - 4, 2).fill(0xffee88);
+    // 枠
+    rect.roundRect(ex - 16, ey - 16, 32, 32, 4).stroke({ color: 0xff6677, width: 1, alpha: 0.6 });
     this.enemyArea.addChild(rect);
   }
 
@@ -209,26 +243,72 @@ export class BattleScene extends Scene {
     this.statusArea.addChild(statusWin);
 
     const nameStyle = new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 12, fill: COLORS.TEXT });
-    const hpStyle = new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.TEXT });
 
     this.battleState.party.forEach((m, i) => {
       if (i >= 4) return;
       const x = 20;
       const y = GAME_HEIGHT - 192 + i * 20;
 
-      const name = new Text({ text: m.name, style: nameStyle });
+      // 戦闘不能時はグレー表示
+      const isDead = m.hp <= 0;
+      const nameColor = isDead ? COLORS.TEXT_DISABLED : COLORS.TEXT;
+      const name = new Text({ text: m.name, style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 12, fill: nameColor }) });
       name.x = x;
       name.y = y;
       this.statusArea.addChild(name);
 
-      const hpColor = m.hp <= 0 ? COLORS.HP_RED : m.hp < m.maxHp * 0.3 ? COLORS.HP_YELLOW : COLORS.HP_GREEN;
+      // HP テキスト
+      const hpColor = isDead ? COLORS.HP_RED : m.hp < m.maxHp * 0.3 ? COLORS.HP_YELLOW : COLORS.HP_GREEN;
       const hp = new Text({
-        text: `HP ${m.hp.toString().padStart(3)}/${m.maxHp.toString().padStart(3)}  MP ${m.mp.toString().padStart(2)}/${m.maxMp.toString().padStart(2)}`,
+        text: `HP`,
+        style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 10, fill: 0x8888aa }),
+      });
+      hp.x = x + 72;
+      hp.y = y + 1;
+      this.statusArea.addChild(hp);
+
+      const hpVal = new Text({
+        text: `${m.hp.toString().padStart(3)}/${m.maxHp.toString().padStart(3)}`,
         style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: hpColor }),
       });
-      hp.x = x + 80;
-      hp.y = y;
-      this.statusArea.addChild(hp);
+      hpVal.x = x + 90;
+      hpVal.y = y;
+      this.statusArea.addChild(hpVal);
+
+      // HPバー
+      const barX = x + 156;
+      const barW = 50;
+      const barH = 4;
+      const barY = y + 6;
+      const hpRatio = m.hp / m.maxHp;
+      const bar = new Graphics();
+      // バー背景
+      bar.roundRect(barX, barY, barW, barH, 2).fill(0x181830);
+      bar.roundRect(barX, barY, barW, barH, 2).stroke({ color: 0x303060, width: 0.5 });
+      // バー本体
+      if (hpRatio > 0) {
+        bar.roundRect(barX, barY, barW * hpRatio, barH, 2).fill(hpColor);
+        // ハイライト
+        bar.roundRect(barX, barY, barW * hpRatio, barH * 0.4, 1).fill({ color: 0xffffff, alpha: 0.2 });
+      }
+      this.statusArea.addChild(bar);
+
+      // MP テキスト
+      const mp = new Text({
+        text: `MP`,
+        style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 10, fill: 0x8888aa }),
+      });
+      mp.x = x + 212;
+      mp.y = y + 1;
+      this.statusArea.addChild(mp);
+
+      const mpVal = new Text({
+        text: `${m.mp.toString().padStart(2)}/${m.maxMp.toString().padStart(2)}`,
+        style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.MP_BLUE }),
+      });
+      mpVal.x = x + 228;
+      mpVal.y = y;
+      this.statusArea.addChild(mpVal);
     });
 
     this.container.addChild(this.statusArea);
@@ -390,19 +470,25 @@ export class BattleScene extends Scene {
 
     for (const p of this.bgParticles) {
       p.twinklePhase += p.twinkleSpeed * delta;
-      const alpha = p.brightness * (0.5 + 0.5 * Math.sin(p.twinklePhase));
-      p.y += p.speed * delta * 0.1;
+      const alpha = p.brightness * (0.3 + 0.7 * Math.abs(Math.sin(p.twinklePhase)));
+      p.y += p.speed * delta * 0.08;
 
-      // 画面下に行ったら上に戻す
-      if (p.y > GAME_HEIGHT * 0.45) {
+      // 画面外に出たら上に戻す
+      if (p.y > GAME_HEIGHT * 0.38) {
         p.y = 0;
         p.x = Math.random() * GAME_WIDTH;
       }
 
-      this.bgGraphics.circle(p.x, p.y, p.size).fill({ color: 0xaaccff, alpha });
-      // 大きいパーティクルはグロウエフェクト
+      // 大きいパーティクルにはグロウ効果
       if (p.size >= 2) {
-        this.bgGraphics.circle(p.x, p.y, p.size + 1).fill({ color: 0x6688cc, alpha: alpha * 0.3 });
+        this.bgGraphics.circle(p.x, p.y, p.size + 3).fill({ color: 0x4466aa, alpha: alpha * 0.1 });
+        this.bgGraphics.circle(p.x, p.y, p.size + 1.5).fill({ color: 0x7799cc, alpha: alpha * 0.25 });
+      }
+      this.bgGraphics.circle(p.x, p.y, p.size).fill({ color: 0xc0d8f8, alpha });
+
+      // 中心の白い点（明るい星）
+      if (p.size >= 1.5) {
+        this.bgGraphics.circle(p.x, p.y, p.size * 0.4).fill({ color: 0xeef4ff, alpha });
       }
     }
   }

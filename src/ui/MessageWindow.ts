@@ -7,7 +7,7 @@ const LINE_HEIGHT = 20;
 const MAX_LINES = 3;
 
 /**
- * DQ風メッセージウィンドウ
+ * DQ風メッセージウィンドウ（リッチデザイン版）
  * - 画面下部に表示
  * - 1文字ずつ表示（タイプライター効果）
  * - タップ/決定で次のメッセージへ
@@ -20,18 +20,41 @@ export class MessageWindow {
   private currentText = '';
   private displayedChars = 0;
   private charTimer = 0;
-  private charSpeed = 2; // フレームあたりの文字表示間隔
+  private charSpeed = 2;
   private isComplete = false;
   private _isVisible = false;
   private onFinish?: () => void;
 
   constructor() {
-    // ウィンドウ背景
     const bg = new Graphics();
     const y = GAME_HEIGHT - WINDOW_HEIGHT - 8;
-    bg.roundRect(8, y, GAME_WIDTH - 16, WINDOW_HEIGHT, 4)
-      .fill({ color: COLORS.WINDOW_BG, alpha: 0.92 });
-    bg.roundRect(8, y, GAME_WIDTH - 16, WINDOW_HEIGHT, 4)
+    const x = 8;
+    const w = GAME_WIDTH - 16;
+    const h = WINDOW_HEIGHT;
+    const r = 6;
+
+    // ドロップシャドウ
+    bg.roundRect(x + 2, y + 2, w, h, r)
+      .fill({ color: 0x000008, alpha: 0.6 });
+
+    // 外枠背景
+    bg.roundRect(x - 1, y - 1, w + 2, h + 2, r + 1)
+      .fill({ color: COLORS.WINDOW_BORDER_OUTER, alpha: 0.8 });
+
+    // メイン背景
+    bg.roundRect(x + 2, y + 2, w - 4, h - 4, r - 1)
+      .fill({ color: COLORS.WINDOW_BG_DARK, alpha: 0.95 });
+
+    // 上部ハイライト
+    bg.roundRect(x + 3, y + 3, w - 6, 12, r - 2)
+      .fill({ color: COLORS.WINDOW_HIGHLIGHT, alpha: 0.4 });
+
+    // 内枠
+    bg.roundRect(x + 3, y + 3, w - 6, h - 6, r - 1)
+      .stroke({ color: 0x5060b0, width: 1, alpha: 0.5 });
+
+    // 外枠ボーダー
+    bg.roundRect(x, y, w, h, r)
       .stroke({ color: COLORS.WINDOW_BORDER, width: 2 });
 
     this.textDisplay = new Text({
@@ -41,11 +64,11 @@ export class MessageWindow {
         fontSize: 14,
         fill: COLORS.TEXT,
         wordWrap: true,
-        wordWrapWidth: GAME_WIDTH - 16 - PADDING * 2,
+        wordWrapWidth: w - PADDING * 2 - 8,
         lineHeight: LINE_HEIGHT,
       },
     });
-    this.textDisplay.x = 8 + PADDING;
+    this.textDisplay.x = x + PADDING + 2;
     this.textDisplay.y = y + PADDING;
 
     // ▼ 続きインジケーター
@@ -54,7 +77,7 @@ export class MessageWindow {
       style: {
         fontFamily: FONT_FAMILY,
         fontSize: 12,
-        fill: COLORS.TEXT,
+        fill: COLORS.CURSOR,
       },
     });
     this.indicator.x = GAME_WIDTH - 28;
@@ -67,7 +90,6 @@ export class MessageWindow {
     this.container.visible = false;
   }
 
-  /** メッセージを表示 */
   show(messages: string[], onFinish?: () => void): void {
     this.messageQueue = [...messages];
     this.onFinish = onFinish;
@@ -90,12 +112,10 @@ export class MessageWindow {
     this.textDisplay.text = '';
   }
 
-  /** 決定ボタン押下時 */
   advance(): void {
     if (!this._isVisible) return;
 
     if (!this.isComplete) {
-      // 全文表示
       this.displayedChars = this.currentText.length;
       this.textDisplay.text = this.currentText;
       this.isComplete = true;
@@ -129,9 +149,10 @@ export class MessageWindow {
       }
     }
 
-    // ▼ 点滅
+    // ▼ 点滅（パルス効果）
     if (this.isComplete) {
-      this.indicator.alpha = Math.sin(Date.now() / 300) > 0 ? 1 : 0.3;
+      const t = Date.now() / 400;
+      this.indicator.alpha = 0.5 + Math.sin(t * Math.PI) * 0.5;
     }
   }
 }

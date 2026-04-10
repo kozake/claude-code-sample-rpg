@@ -7,8 +7,9 @@ const BTN_SIZE = 40;
 const MARGIN = 12;
 
 /**
- * 仮想十字キー（左下に配置）
- * ゲーム画面上にオーバーレイ
+ * 仮想十字キー（リッチデザイン版）
+ * - グラスモーフィズム風の半透明デザイン
+ * - グラデーション + 内側グロウ
  */
 export class DPad {
   readonly container = new Container();
@@ -22,51 +23,52 @@ export class DPad {
     this.container.x = baseX;
     this.container.y = baseY;
 
-    // 中央を基準にした各方向ボタン位置
+    // ベースプレート（薄い円形シャドウ）
+    const plate = new Graphics();
+    plate.circle(PAD_SIZE / 2, PAD_SIZE / 2, PAD_SIZE * 0.42)
+      .fill({ color: 0x000020, alpha: 0.2 });
+    this.container.addChild(plate);
+
     const cx = PAD_SIZE / 2 - BTN_SIZE / 2;
     const cy = PAD_SIZE / 2 - BTN_SIZE / 2;
 
-    this.createButton(cx, 0, 'up');              // 上
-    this.createButton(cx, PAD_SIZE - BTN_SIZE, 'down');  // 下
-    this.createButton(0, cy, 'left');            // 左
-    this.createButton(PAD_SIZE - BTN_SIZE, cy, 'right'); // 右
+    this.createButton(cx, 0, 'up');
+    this.createButton(cx, PAD_SIZE - BTN_SIZE, 'down');
+    this.createButton(0, cy, 'left');
+    this.createButton(PAD_SIZE - BTN_SIZE, cy, 'right');
   }
 
   private createButton(x: number, y: number, dir: Direction): void {
     const btn = new Graphics();
-    btn.roundRect(x, y, BTN_SIZE, BTN_SIZE, 4).fill({ color: COLORS.WHITE, alpha: 0.25 });
-    btn.roundRect(x, y, BTN_SIZE, BTN_SIZE, 4).stroke({ color: COLORS.WHITE, alpha: 0.5, width: 1 });
 
-    // 矢印記号
+    // ボタン背景（グラデーション風）
+    btn.roundRect(x, y, BTN_SIZE, BTN_SIZE, 6)
+      .fill({ color: 0x101030, alpha: 0.45 });
+    // 上端ハイライト
+    btn.roundRect(x + 1, y + 1, BTN_SIZE - 2, BTN_SIZE * 0.4, 5)
+      .fill({ color: 0xffffff, alpha: 0.08 });
+    // 外枠
+    btn.roundRect(x, y, BTN_SIZE, BTN_SIZE, 6)
+      .stroke({ color: 0xb0b8d0, alpha: 0.4, width: 1.5 });
+
+    // 矢印
     const arrow = new Graphics();
     const cx = x + BTN_SIZE / 2;
     const cy = y + BTN_SIZE / 2;
-    const s = 8;
+    const s = 7;
 
-    arrow.setStrokeStyle({ width: 3, color: COLORS.WHITE, alpha: 0.8 });
-    switch (dir) {
-      case 'up':
-        arrow.moveTo(cx, cy - s).lineTo(cx - s, cy + s / 2);
-        arrow.moveTo(cx, cy - s).lineTo(cx + s, cy + s / 2);
-        break;
-      case 'down':
-        arrow.moveTo(cx, cy + s).lineTo(cx - s, cy - s / 2);
-        arrow.moveTo(cx, cy + s).lineTo(cx + s, cy - s / 2);
-        break;
-      case 'left':
-        arrow.moveTo(cx - s, cy).lineTo(cx + s / 2, cy - s);
-        arrow.moveTo(cx - s, cy).lineTo(cx + s / 2, cy + s);
-        break;
-      case 'right':
-        arrow.moveTo(cx + s, cy).lineTo(cx - s / 2, cy - s);
-        arrow.moveTo(cx + s, cy).lineTo(cx - s / 2, cy + s);
-        break;
-    }
+    // 矢印の影
+    arrow.setStrokeStyle({ width: 4, color: 0x000000, alpha: 0.3 });
+    this.drawArrowPath(arrow, cx + 0.5, cy + 0.5, s, dir);
+    arrow.stroke();
+
+    // 矢印本体
+    arrow.setStrokeStyle({ width: 2.5, color: 0xd0d8f0, alpha: 0.9 });
+    this.drawArrowPath(arrow, cx, cy, s, dir);
     arrow.stroke();
 
     btn.eventMode = 'static';
     btn.cursor = 'pointer';
-    // ヒットエリアを広げる
     btn.hitArea = { contains: (px: number, py: number) => px >= x - 4 && px <= x + BTN_SIZE + 4 && py >= y - 4 && py <= y + BTN_SIZE + 4 };
 
     btn.on('pointerdown', (e: FederatedPointerEvent) => {
@@ -78,5 +80,26 @@ export class DPad {
 
     this.container.addChild(btn);
     this.container.addChild(arrow);
+  }
+
+  private drawArrowPath(g: Graphics, cx: number, cy: number, s: number, dir: Direction): void {
+    switch (dir) {
+      case 'up':
+        g.moveTo(cx, cy - s).lineTo(cx - s, cy + s * 0.4);
+        g.moveTo(cx, cy - s).lineTo(cx + s, cy + s * 0.4);
+        break;
+      case 'down':
+        g.moveTo(cx, cy + s).lineTo(cx - s, cy - s * 0.4);
+        g.moveTo(cx, cy + s).lineTo(cx + s, cy - s * 0.4);
+        break;
+      case 'left':
+        g.moveTo(cx - s, cy).lineTo(cx + s * 0.4, cy - s);
+        g.moveTo(cx - s, cy).lineTo(cx + s * 0.4, cy + s);
+        break;
+      case 'right':
+        g.moveTo(cx + s, cy).lineTo(cx - s * 0.4, cy - s);
+        g.moveTo(cx + s, cy).lineTo(cx - s * 0.4, cy + s);
+        break;
+    }
   }
 }
