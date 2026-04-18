@@ -108,7 +108,7 @@ export class BattleScene extends Scene {
     this.container.addChild(actionBtn.container);
 
     // 戦闘開始SE + トランジション
-    this.game.audio.playSynth('battleStart');
+    this.game.audio.playSeOrSynth('battleStart');
     await this.effects.battleTransition();
 
     // 開始メッセージ
@@ -430,7 +430,7 @@ export class BattleScene extends Scene {
     switch (this.phase) {
       case 'result':
         if (input.isActionPressed) {
-          this.game.audio.playSynth('confirm');
+          this.game.audio.playSeOrSynth('confirm');
           this.advanceMessage();
         }
         break;
@@ -454,7 +454,7 @@ export class BattleScene extends Scene {
       case 'victory':
       case 'defeat':
         if (input.isActionPressed) {
-          this.game.audio.playSynth('confirm');
+          this.game.audio.playSeOrSynth('confirm');
           this.onBattleEnd(this.phase === 'victory');
         }
         break;
@@ -497,16 +497,16 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.commandCursor > 0) {
       this.commandCursor--;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawCommandWindow();
     } else if (dir === 'down' && this.commandCursor < COMMANDS.length - 1) {
       this.commandCursor++;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawCommandWindow();
     }
 
     if (input.isActionPressed) {
-      this.game.audio.playSynth('confirm');
+      this.game.audio.playSeOrSynth('confirm');
       switch (this.commandCursor) {
         case 0: // たたかう
           this.phase = 'target';
@@ -532,7 +532,7 @@ export class BattleScene extends Scene {
     }
 
     if (input.isCancelPressed && this.currentMemberIdx > 0) {
-      this.game.audio.playSynth('cancel');
+      this.game.audio.playSeOrSynth('cancel');
       // 前のメンバーに戻る
       this.partyActions.pop();
       this.currentMemberIdx = this.findPrevAliveMember(this.currentMemberIdx);
@@ -549,23 +549,23 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.targetCursor > 0) {
       this.targetCursor--;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawTargetSelect();
     } else if (dir === 'down' && this.targetCursor < aliveEnemies.length - 1) {
       this.targetCursor++;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawTargetSelect();
     }
 
     if (input.isActionPressed) {
-      this.game.audio.playSynth('confirm');
+      this.game.audio.playSeOrSynth('confirm');
       const target = aliveEnemies[this.targetCursor];
       this.partyActions.push({ type: 'attack', targetIndex: target.index });
       this.nextMemberOrExecute();
     }
 
     if (input.isCancelPressed) {
-      this.game.audio.playSynth('cancel');
+      this.game.audio.playSeOrSynth('cancel');
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
@@ -629,16 +629,16 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.itemCursor > 0) {
       this.itemCursor--;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawBattleItemSelect();
     } else if (dir === 'down' && this.itemCursor < this.battleItems.length - 1) {
       this.itemCursor++;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawBattleItemSelect();
     }
 
     if (input.isActionPressed) {
-      this.game.audio.playSynth('confirm');
+      this.game.audio.playSeOrSynth('confirm');
       this.selectedBattleItem = this.battleItems[this.itemCursor].data;
       const target = this.selectedBattleItem.target;
 
@@ -653,7 +653,7 @@ export class BattleScene extends Scene {
     }
 
     if (input.isCancelPressed) {
-      this.game.audio.playSynth('cancel');
+      this.game.audio.playSeOrSynth('cancel');
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
@@ -702,22 +702,22 @@ export class BattleScene extends Scene {
     const dir = input.directionJustPressed;
     if (dir === 'up' && this.allyTargetCursor > 0) {
       this.allyTargetCursor--;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawAllyTargetSelect();
     } else if (dir === 'down' && this.allyTargetCursor < party.length - 1) {
       this.allyTargetCursor++;
-      this.game.audio.playSynth('cursor');
+      this.game.audio.playSeOrSynth('cursor');
       this.drawAllyTargetSelect();
     }
 
     if (input.isActionPressed && this.selectedBattleItem) {
-      this.game.audio.playSynth('confirm');
+      this.game.audio.playSeOrSynth('confirm');
       this.partyActions.push({ type: 'item', itemId: this.selectedBattleItem.id, targetIndex: this.allyTargetCursor });
       this.nextMemberOrExecute();
     }
 
     if (input.isCancelPressed) {
-      this.game.audio.playSynth('cancel');
+      this.game.audio.playSeOrSynth('cancel');
       this.phase = 'battleItem';
       this.drawBattleItemSelect();
     }
@@ -855,12 +855,12 @@ export class BattleScene extends Scene {
   /** アクション結果に応じたエフェクトとSE再生 */
   private playActionEffects(result: ActionResult): void {
     if (result.action.type === 'defend') {
-      this.game.audio.playSynth('defend');
+      this.game.audio.playSeOrSynth('defend');
       return;
     }
 
     if (result.missed) {
-      this.game.audio.playSynth('miss');
+      this.game.audio.playSeOrSynth('miss');
       return;
     }
 
@@ -873,13 +873,13 @@ export class BattleScene extends Scene {
       const enemyPos = this.getEnemyPosition(enemyIdx);
 
       if (result.critical) {
-        this.game.audio.playSynth('critical');
+        this.game.audio.playSeOrSynth('critical');
         this.effects.flash(0xffff00, 0.5, 300);
         this.effects.shake(this.enemyArea, 8, 400);
         this.effects.showSlash(enemyPos.x, enemyPos.y);
         this.effects.showDamage(enemyPos.x, enemyPos.y - 25, result.damage, true);
       } else {
-        this.game.audio.playSynth('attack');
+        this.game.audio.playSeOrSynth('attack');
         this.effects.flash(0xffffff, 0.3, 150);
         this.effects.shake(this.enemyArea, 3, 200);
         this.effects.showSlash(enemyPos.x, enemyPos.y);
@@ -887,18 +887,18 @@ export class BattleScene extends Scene {
       }
 
       if (result.targetDied) {
-        this.game.audio.playSynth('enemyDeath');
+        this.game.audio.playSeOrSynth('enemyDeath');
       }
     }
 
     if (isEnemyAttack && result.damage && result.damage > 0) {
       // 敵の攻撃 → 画面シェイク + 赤フラッシュ
       if (result.critical) {
-        this.game.audio.playSynth('critical');
+        this.game.audio.playSeOrSynth('critical');
         this.effects.flash(0xff0000, 0.5, 300);
         this.effects.shake(this.container, 6, 400);
       } else {
-        this.game.audio.playSynth('damage');
+        this.game.audio.playSeOrSynth('damage');
         this.effects.flash(0xff0000, 0.3, 200);
         this.effects.shake(this.container, 3, 200);
       }
@@ -906,7 +906,7 @@ export class BattleScene extends Scene {
 
     // 回復系アイテム
     if (result.healed && result.healed > 0) {
-      this.game.audio.playSynth('heal');
+      this.game.audio.playSeOrSynth('heal');
       this.effects.flash(0x00ff88, 0.2, 300);
       this.effects.showHealSparkle(GAME_WIDTH / 2, GAME_HEIGHT - 160);
     }
@@ -923,7 +923,7 @@ export class BattleScene extends Scene {
   private executeFlee(): void {
     const result = this.battleState.attemptFlee();
     if (result.success) {
-      this.game.audio.playSynth('flee');
+      this.game.audio.playSeOrSynth('flee');
     }
     this.showMessages(result.messages, () => {
       if (result.success) {
@@ -967,7 +967,7 @@ export class BattleScene extends Scene {
   private showVictory(): void {
     // 勝利エフェクト
     this.effects.victoryFlash();
-    this.game.audio.playSynth('victory');
+    this.game.audio.playSeOrSynth('victory');
 
     const rewards = this.battleState.getVictoryRewards();
     const messages: string[] = [];
@@ -1007,7 +1007,7 @@ export class BattleScene extends Scene {
       for (const result of results) {
         if (!hasLevelUp) {
           hasLevelUp = true;
-          this.game.audio.playSynth('levelUp');
+          this.game.audio.playSeOrSynth('levelUp');
           this.effects.flash(0xffff00, 0.4, 500);
         }
         messages.push(...LevelUpSystem.generateMessages(result));
