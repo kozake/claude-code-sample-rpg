@@ -315,13 +315,13 @@ export class TitleScene extends Scene {
 
   private moveCursor(dir: number): void {
     this.cursorIndex = (this.cursorIndex + dir + MENU_ITEMS.length) % MENU_ITEMS.length;
-    this.game.audio.playSynth('cursor');
+    this.game.audio.playSeOrSynth('cursor');
     this.updateCursorPosition();
   }
 
   private selectItem(index: number): void {
     this.inputEnabled = false;
-    this.game.audio.playSynth('confirm');
+    this.game.audio.playSeOrSynth('confirm');
 
     switch (index) {
       case 0:

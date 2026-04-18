@@ -1,0 +1,79 @@
+{
+  "_comment": "アセットのクレジット情報。素材を導入したら該当エントリの fileName, author, source, license を記入してください。未記入の項目はゲーム内クレジット画面に表示されません。",
+  "graphics": {
+    "characters": [
+      { "fileName": "hero.png", "author": "", "source": "", "license": "", "note": "主人公" },
+      { "fileName": "elna.png", "author": "", "source": "", "license": "", "note": "仲間（魔法使い）" },
+      { "fileName": "elder.png", "author": "", "source": "", "license": "", "note": "村長" },
+      { "fileName": "innkeeper.png", "author": "", "source": "", "license": "", "note": "宿屋の主人" },
+      { "fileName": "priest.png", "author": "", "source": "", "license": "", "note": "神父" },
+      { "fileName": "shopkeeper.png", "author": "", "source": "", "license": "", "note": "店主" },
+      { "fileName": "soldier.png", "author": "", "source": "", "license": "", "note": "兵士" },
+      { "fileName": "villager.png", "author": "", "source": "", "license": "", "note": "村人" }
+    ],
+    "enemies": [
+      { "fileName": "slime.png", "author": "", "source": "", "license": "" },
+      { "fileName": "bat.png", "author": "", "source": "", "license": "" },
+      { "fileName": "goblin.png", "author": "", "source": "", "license": "" },
+      { "fileName": "goblin_archer.png", "author": "", "source": "", "license": "" },
+      { "fileName": "goblin_king.png", "author": "", "source": "", "license": "" },
+      { "fileName": "skeleton.png", "author": "", "source": "", "license": "" }
+    ],
+    "tilesets": [
+      { "fileName": "village.png", "author": "", "source": "", "license": "", "note": "村マップ用" },
+      { "fileName": "cave.png", "author": "", "source": "", "license": "", "note": "ダンジョン用" },
+      { "fileName": "world.png", "author": "", "source": "", "license": "", "note": "世界地図用" }
+    ]
+  },
+  "audio": {
+    "bgm": [
+      { "fileName": "title", "author": "", "source": "", "license": "", "note": "タイトル画面" },
+      { "fileName": "field", "author": "", "source": "", "license": "", "note": "フィールド" },
+      { "fileName": "village", "author": "", "source": "", "license": "", "note": "村" },
+      { "fileName": "dungeon", "author": "", "source": "", "license": "", "note": "ダンジョン" },
+      { "fileName": "battle", "author": "", "source": "", "license": "", "note": "戦闘" },
+      { "fileName": "victory", "author": "", "source": "", "license": "", "note": "勝利" }
+    ],
+    "se": [
+      { "fileName": "cursor", "author": "", "source": "", "license": "" },
+      { "fileName": "confirm", "author": "", "source": "", "license": "" },
+      { "fileName": "cancel", "author": "", "source": "", "license": "" },
+      { "fileName": "attack", "author": "", "source": "", "license": "" },
+      { "fileName": "critical", "author": "", "source": "", "license": "" },
+      { "fileName": "damage", "author": "", "source": "", "license": "" },
+      { "fileName": "miss", "author": "", "source": "" , "license": "" },
+      { "fileName": "defend", "author": "", "source": "", "license": "" },
+      { "fileName": "enemyDeath", "author": "", "source": "", "license": "" },
+      { "fileName": "heal", "author": "", "source": "", "license": "" },
+      { "fileName": "flee", "author": "", "source": "", "license": "" },
+      { "fileName": "levelUp", "author": "", "source": "", "license": "" },
+      { "fileName": "victory", "author": "", "source": "", "license": "" },
+      { "fileName": "battleStart", "author": "", "source": "", "license": "" }
+    ]
+  },
+  "recommendedSources": {
+    "graphics": [
+      { "name": "ぴぽや倉庫", "url": "https://pipoya.net/sozai/", "license": "商用可・クレジット表記任意・改変可", "note": "16x16 RPGキャラチップ (3x4配置)、モンスター、タイルセット — 本プロジェクトのスプライト仕様と完全互換" },
+      { "name": "First Seed Material", "url": "https://fsm.tm.land.to/", "license": "商用可・クレジット推奨", "note": "DQ風キャラ・モンスター・マップチップ" },
+      { "name": "Kenney.nl", "url": "https://kenney.nl/assets", "license": "CC0", "note": "1-Bit Pack / Tiny Dungeon / Tiny Town などピクセルアート多数" },
+      { "name": "OpenGameArt.org", "url": "https://opengameart.org/", "license": "CC0 / CC-BY 混在", "note": "個別確認必須。DawnLike, 16x16 Dungeon Tileset 等推奨" }
+    ],
+    "bgm": [
+      { "name": "DOVA-SYNDROME", "url": "https://dova-s.jp/", "license": "商用可・クレジット原則不要", "note": "RPG向けBGM豊富" },
+      { "name": "甘茶の音楽工房", "url": "https://amachamusic.chagasi.com/", "license": "商用可・クレジット表記推奨" },
+      { "name": "魔王魂", "url": "https://maou.audio/", "license": "商用可・クレジット表記必須" }
+    ],
+    "se": [
+      { "name": "効果音ラボ", "url": "https://soundeffect-lab.info/", "license": "商用可・クレジット不要" },
+      { "name": "魔王魂", "url": "https://maou.audio/category/se/", "license": "商用可・クレジット表記必須" },
+      { "name": "小森平 (on-jin.com)", "url": "https://on-jin.com/", "license": "商用可・クレジット任意" }
+    ]
+  },
+  "assetSpecs": {
+    "characters": "48x64px PNG、16x16の3列×4行グリッド（列=歩行アニメ3フレーム、行=向き down/left/right/up）",
+    "enemies": "最大64x64px PNG、正面向き単フレーム",
+    "tilesets": "16x16グリッドのPNG。幅から列数を自動判定",
+    "bgm": "推奨mp3、wav/oggも可。ループ前提",
+    "se": "推奨mp3、短尺。ファイル無ければ SoundGenerator による合成音に自動フォールバック"
+  }
+}

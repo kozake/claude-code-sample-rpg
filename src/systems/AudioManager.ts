@@ -17,6 +17,7 @@ export class AudioManager {
   private seVolume = 0.7;
   private bgmCache = new Map<string, Howl>();
   private seCache = new Map<string, Howl>();
+  private seFailedIds = new Set<string>();
   readonly synth = new SoundGenerator();
 
   /** iOS Safari等でオーディオコンテキストをアンロック */
@@ -100,6 +101,26 @@ export class AudioManager {
     this.synth.play(id);
   }
 
+  /**
+   * SE再生（ファイル優先、無ければ合成音にフォールバック）
+   * - 初回呼び出しでファイル読み込みを開始。ロード完了前は合成音で代替
+   * - ロード失敗が確定した id は以降ずっと合成音
+   */
+  playSeOrSynth(id: string): void {
+    if (this.seFailedIds.has(id)) {
+      this.synth.play(id);
+      return;
+    }
+    const howl = this.getSe(id);
+    if (howl && howl.state() === 'loaded') {
+      howl.volume(this.seVolume);
+      howl.play();
+    } else {
+      // ロード中 or 未ロード → 合成音で代替（次回以降はファイルが鳴る）
+      this.synth.play(id);
+    }
+  }
+
   private getBgm(id: string): Howl | null {
     if (this.bgmCache.has(id)) return this.bgmCache.get(id)!;
 
@@ -126,6 +147,8 @@ export class AudioManager {
       volume: this.seVolume,
       preload: true,
       onloaderror: () => {
+        // ファイルが存在しない場合: 以降は合成音にフォールバック
+        this.seFailedIds.add(id);
         this.seCache.delete(id);
       },
     });
