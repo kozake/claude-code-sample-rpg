@@ -1,7 +1,10 @@
 /**
  * チップチューンBGM生成ツール
- * - title.wav / victory.wav を生成
- * 実行: npx tsx tools/generate-bgm.ts
+ * 実行: npx tsx tools/generate-bgm.ts [曲名...]
+ *   曲名を指定するとその曲のみ生成（例: npx tsx tools/generate-bgm.ts boss fanfare gameover）
+ *   無指定の場合はすべて生成
+ * 注意: assets/audio/bgm/ では .wav が .ogg より優先されるため、
+ *       外部素材(.ogg)を使っている曲は上書き生成しないこと
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -47,9 +50,10 @@ function getWave(type: WaveType, phase: number): number {
 
 // 音名→周波数
 const NOTE_FREQ: Record<string, number> = {
-  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
-  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16, B4: 493.88,
-  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+  E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, Ab3: 207.65, A3: 220.00, Bb3: 233.08, B3: 246.94,
+  C4: 261.63, Db4: 277.18, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23, G4: 392.00, Ab4: 415.30, A4: 440.00, Bb4: 466.16, B4: 493.88,
+  C5: 523.25, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46, G5: 783.99, Ab5: 830.61, A5: 880.00, B5: 987.77,
   C6: 1046.50,
   REST: 0,
 };
@@ -65,10 +69,12 @@ function parseNotes(notation: string, bpm: number): Note[] {
 
   const tokens = notation.trim().split(/\s+/);
   for (const token of tokens) {
-    const match = token.match(/^([A-Gb#]+\d|REST)([\d.]+)?$/);
+    // 例: C5 / C5.1 / C5.0.5 / Ab3.2 / REST2
+    const match = token.match(/^(REST|[A-G][b#]?\d)\.?([\d.]+)?$/);
     if (!match) continue;
     const noteName = match[1];
     const beats = parseFloat(match[2] || '1');
+    if (!(beats > 0)) continue;
     const freq = NOTE_FREQ[noteName] ?? 0;
     notes.push({ freq, duration: beatDuration * beats });
   }
@@ -540,13 +546,148 @@ function generateDungeonBgm(): void {
   writeWav(path.join(OUTPUT_DIR, 'dungeon.wav'), mixed);
 }
 
+// ---- ボス戦BGM ----
+
+function generateBossBgm(): void {
+  const bpm = 170;
+
+  // 短調の緊迫したボステーマ（Aマイナー、半音階の不穏さ）
+  const melodyNotation = `
+    A4.0.5 A4.0.5 C5.0.5 A4.0.5 Eb5.1 D5.0.5 C5.0.5
+    D5.0.5 D5.0.5 F5.0.5 D5.0.5 Ab5.1 G5.0.5 F5.0.5
+    E5.0.5 E5.0.5 G5.0.5 E5.0.5 A5.1 G5.0.5 E5.0.5
+    F5.0.5 E5.0.5 D5.0.5 C5.0.5 B4.1 E5.1
+    A4.0.5 A4.0.5 C5.0.5 A4.0.5 Eb5.1 D5.0.5 C5.0.5
+    D5.0.5 D5.0.5 F5.0.5 D5.0.5 Ab5.1 G5.0.5 F5.0.5
+    A5.0.5 G5.0.5 F5.0.5 E5.0.5 F5.0.5 E5.0.5 D5.0.5 C5.0.5
+    B4.1 Ab4.1 A4.2
+  `;
+
+  // 刻みベース（8分音符の駆動感）
+  const bassNotation = `
+    A3.0.5 A3.0.5 A3.0.5 A3.0.5 A3.0.5 A3.0.5 G3.0.5 A3.0.5
+    D3.0.5 D3.0.5 D3.0.5 D3.0.5 D3.0.5 D3.0.5 C3.0.5 D3.0.5
+    E3.0.5 E3.0.5 E3.0.5 E3.0.5 E3.0.5 E3.0.5 D3.0.5 E3.0.5
+    F3.0.5 F3.0.5 F3.0.5 F3.0.5 E3.0.5 E3.0.5 E3.0.5 E3.0.5
+    A3.0.5 A3.0.5 A3.0.5 A3.0.5 A3.0.5 A3.0.5 G3.0.5 A3.0.5
+    D3.0.5 D3.0.5 D3.0.5 D3.0.5 D3.0.5 D3.0.5 C3.0.5 D3.0.5
+    F3.0.5 F3.0.5 F3.0.5 F3.0.5 G3.0.5 G3.0.5 G3.0.5 G3.0.5
+    E3.0.5 E3.0.5 E3.0.5 E3.0.5 A3.2
+  `;
+
+  // 不協和ハーモニー（薄く）
+  const harmonyNotation = `
+    E4.2 Eb4.2
+    F4.2 D4.2
+    G4.2 E4.2
+    D4.2 E4.2
+    E4.2 Eb4.2
+    F4.2 D4.2
+    F4.2 G4.2
+    E4.2 E4.2
+  `;
+
+  const melodyNotes = parseNotes(melodyNotation, bpm);
+  const bassNotes = parseNotes(bassNotation, bpm);
+  const harmonyNotes = parseNotes(harmonyNotation, bpm);
+
+  const totalDuration = melodyNotes.reduce((sum, n) => sum + n.duration, 0);
+  const totalSamples = Math.floor(totalDuration * SAMPLE_RATE);
+
+  const tracks = [
+    renderTrack({ wave: 'square', volume: 0.32, notes: melodyNotes }, totalSamples),
+    renderTrack({ wave: 'triangle', volume: 0.5, notes: bassNotes }, totalSamples),
+    renderTrack({ wave: 'square', volume: 0.1, notes: harmonyNotes }, totalSamples),
+  ];
+
+  const mixed = mixTracks(tracks);
+  writeWav(path.join(OUTPUT_DIR, 'boss.wav'), mixed);
+}
+
+// ---- 勝利ファンファーレ（短いジングル） ----
+
+function generateFanfareBgm(): void {
+  const bpm = 132;
+
+  // DQ風「タタタ・ターン」
+  const melodyNotation = `
+    G4.0.5 C5.0.5 E5.0.5 G5.1.5 E5.0.5 G5.2
+    F5.0.5 E5.0.5 D5.0.5 E5.0.5 C5.2.5
+  `;
+
+  const bassNotation = `
+    C3.0.5 C3.0.5 C3.0.5 C3.1.5 C3.0.5 E3.2
+    F3.1 G3.1 C3.3.5
+  `;
+
+  const melodyNotes = parseNotes(melodyNotation, bpm);
+  const bassNotes = parseNotes(bassNotation, bpm);
+
+  const totalDuration = melodyNotes.reduce((sum, n) => sum + n.duration, 0);
+  const totalSamples = Math.floor(totalDuration * SAMPLE_RATE);
+
+  const tracks = [
+    renderTrack({ wave: 'square', volume: 0.4, notes: melodyNotes }, totalSamples),
+    renderTrack({ wave: 'triangle', volume: 0.45, notes: bassNotes }, totalSamples),
+  ];
+
+  const mixed = mixTracks(tracks);
+  writeWav(path.join(OUTPUT_DIR, 'fanfare.wav'), mixed);
+}
+
+// ---- ゲームオーバージングル ----
+
+function generateGameoverBgm(): void {
+  const bpm = 80;
+
+  // 沈んだ下降フレーズ
+  const melodyNotation = `
+    A4.1 G4.1 F4.1 E4.2 F4.1 E4.1 D4.1 C4.3 REST1
+  `;
+
+  const bassNotation = `
+    F3.2 C3.2 D3.2 G2.2 C3.4
+  `;
+
+  const melodyNotes = parseNotes(melodyNotation, bpm);
+  const bassNotes = parseNotes(bassNotation, bpm);
+
+  const totalDuration = melodyNotes.reduce((sum, n) => sum + n.duration, 0);
+  const totalSamples = Math.floor(totalDuration * SAMPLE_RATE);
+
+  const tracks = [
+    renderTrack({ wave: 'triangle', volume: 0.4, notes: melodyNotes }, totalSamples),
+    renderTrack({ wave: 'sine', volume: 0.35, notes: bassNotes }, totalSamples),
+  ];
+
+  const mixed = mixTracks(tracks);
+  writeWav(path.join(OUTPUT_DIR, 'gameover.wav'), mixed);
+}
+
 // ---- メイン実行 ----
 
+const GENERATORS: Record<string, () => void> = {
+  title: generateTitleBgm,
+  victory: generateVictoryBgm,
+  battle: generateBattleBgm,
+  village: generateVillageBgm,
+  field: generateFieldBgm,
+  dungeon: generateDungeonBgm,
+  boss: generateBossBgm,
+  fanfare: generateFanfareBgm,
+  gameover: generateGameoverBgm,
+};
+
+const targets = process.argv.slice(2);
+const names = targets.length > 0 ? targets : Object.keys(GENERATORS);
+
 console.log('Generating BGM files...');
-generateTitleBgm();
-generateVictoryBgm();
-generateBattleBgm();
-generateVillageBgm();
-generateFieldBgm();
-generateDungeonBgm();
+for (const name of names) {
+  const gen = GENERATORS[name];
+  if (gen) {
+    gen();
+  } else {
+    console.warn(`Unknown BGM name: ${name}`);
+  }
+}
 console.log('Done!');

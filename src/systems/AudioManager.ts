@@ -50,9 +50,34 @@ export class AudioManager {
     const startPlayback = () => {
       // 別のBGMに切り替わっていたら再生しない
       if (this.currentBgm !== howl) return;
+      howl.loop(true);
       howl.volume(0);
       howl.play();
       howl.fade(0, this.bgmVolume, fadeIn);
+    };
+
+    if (howl.state() === 'loaded') {
+      startPlayback();
+    } else {
+      howl.once('load', startPlayback);
+    }
+  }
+
+  /** ジングル再生（BGMフォルダの曲をループなしで1回再生） */
+  playJingle(id: string): void {
+    this.stopBgm(200);
+
+    const howl = this.getBgm(id);
+    if (!howl) return;
+
+    howl.loop(false);
+    this.currentBgm = howl;
+    this.currentBgmId = id;
+
+    const startPlayback = () => {
+      if (this.currentBgm !== howl) return;
+      howl.volume(this.bgmVolume);
+      howl.play();
     };
 
     if (howl.state() === 'loaded') {

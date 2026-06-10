@@ -72,6 +72,12 @@ export class BattleScene extends Scene {
   private bgGraphics = new Graphics();
   private bgAnimTimer = 0;
 
+  // 背景テーマ（マップに応じて切り替え）
+  private background: 'field' | 'cave';
+
+  // 敵の浮遊アニメーション用タイマー
+  private bobTimer = 0;
+
   // アクション結果キュー（エフェクト連携用）
   private actionResultQueue: ActionResult[] = [];
 
@@ -80,14 +86,22 @@ export class BattleScene extends Scene {
   private enemyHpBars: (Graphics | null)[] = [];
   private enemyDeathAnimated = new Set<number>();
 
-  constructor(game: Game, enemies: EnemyData[], onBattleEnd: (victory: boolean) => void) {
+  constructor(
+    game: Game,
+    enemies: EnemyData[],
+    onBattleEnd: (victory: boolean) => void,
+    background: 'field' | 'cave' = 'field'
+  ) {
     super(game);
     this.battleState = new BattleState([...game.state.active], enemies);
     this.onBattleEnd = onBattleEnd;
+    this.background = background;
   }
 
   async onEnter(): Promise<void> {
-    this.game.audio.playBgm('battle');
+    // ボス戦（逃走耐性100以上）は専用BGM
+    const isBoss = this.battleState.enemies.some((e) => (e.data.fleeResistance ?? 0) >= 100);
+    this.game.audio.playBgm(isBoss ? 'boss' : 'battle');
 
     // アイテムマスタ読み込み
     const allItems = await this.game.content.loadJson<ItemData[]>('items/items.json');
@@ -118,9 +132,8 @@ export class BattleScene extends Scene {
     this.container.addChild(dpad.container);
     this.container.addChild(actionBtn.container);
 
-    // 戦闘開始SE + トランジション
+    // 戦闘開始SE（画面遷移フェードはSceneManagerが行う）
     this.game.audio.playSeOrSynth('battleStart');
-    await this.effects.battleTransition();
 
     // 開始メッセージ
     const enemyNames = this.battleState.enemies.map((e) => e.data.name).join('と ');
@@ -133,6 +146,31 @@ export class BattleScene extends Scene {
   }
 
   private drawBackground(): void {
+    if (this.background === 'cave') {
+      this.drawCaveBackground();
+    } else {
+      this.drawFieldBackground();
+    }
+
+    // 背景パーティクル（フィールド=星空 / 洞窟=舞い上がる火の粉）
+    this.bgParticles = [];
+    const particleCount = this.background === 'cave' ? 30 : 50;
+    for (let i = 0; i < particleCount; i++) {
+      this.bgParticles.push({
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT * 0.38,
+        speed: 0.05 + Math.random() * 0.2,
+        size: Math.random() < 0.1 ? 2.5 : Math.random() < 0.3 ? 1.5 : 0.8,
+        brightness: 0.2 + Math.random() * 0.8,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.015 + Math.random() * 0.035,
+      });
+    }
+    this.container.addChild(this.bgGraphics);
+  }
+
+  /** フィールド戦闘背景（星空 + 草原の地面） */
+  private drawFieldBackground(): void {
     // リッチグラデーション背景（暗い紺 → 紫 → 深い藍）
     const bg = new Graphics();
     const gradientSteps = 24;
@@ -149,39 +187,73 @@ export class BattleScene extends Scene {
 
     // 地平線ライン
     const horizonY = GAME_HEIGHT * 0.4;
-    bg.rect(0, horizonY - 1, GAME_WIDTH, 1).fill({ color: 0x303060, alpha: 0.5 });
-    bg.rect(0, horizonY, GAME_WIDTH, 1).fill({ color: 0x202050, alpha: 0.3 });
+    bg.rect(0, horizonY - 1, GAME_WIDTH, 1).fill({ color: 0x305030, alpha: 0.5 });
+    bg.rect(0, horizonY, GAME_WIDTH, 1).fill({ color: 0x204020, alpha: 0.3 });
 
-    // 地面グラデーション（下半分）
+    // 地面グラデーション（夜の草原）
     const groundSteps = 12;
     const groundH = GAME_HEIGHT * 0.15;
-    const groundStartY = horizonY;
     for (let i = 0; i < groundSteps; i++) {
       const t = i / (groundSteps - 1);
-      const gr = Math.floor(0x0c + t * 0x08);
-      const gg = Math.floor(0x08 + t * 0x04);
-      const gb = Math.floor(0x20 + t * 0x10);
+      const gr = Math.floor(0x06 + t * 0x04);
+      const gg = Math.floor(0x14 + t * 0x0a);
+      const gb = Math.floor(0x0c + t * 0x06);
       const gColor = (gr << 16) | (gg << 8) | gb;
-      bg.rect(0, groundStartY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
+      bg.rect(0, horizonY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
         .fill(gColor);
     }
 
     this.container.addChild(bg);
+  }
 
-    // 背景パーティクル（星/光の粒 - より多く、より立体的に）
-    this.bgParticles = [];
-    for (let i = 0; i < 50; i++) {
-      this.bgParticles.push({
-        x: Math.random() * GAME_WIDTH,
-        y: Math.random() * GAME_HEIGHT * 0.38,
-        speed: 0.05 + Math.random() * 0.2,
-        size: Math.random() < 0.1 ? 2.5 : Math.random() < 0.3 ? 1.5 : 0.8,
-        brightness: 0.2 + Math.random() * 0.8,
-        twinklePhase: Math.random() * Math.PI * 2,
-        twinkleSpeed: 0.015 + Math.random() * 0.035,
-      });
+  /** 洞窟戦闘背景（岩肌 + 鍾乳石のシルエット） */
+  private drawCaveBackground(): void {
+    const bg = new Graphics();
+
+    // 岩肌のグラデーション（暗い焦げ茶 → 赤茶）
+    const gradientSteps = 24;
+    const stepH = Math.ceil(GAME_HEIGHT / gradientSteps);
+    for (let i = 0; i < gradientSteps; i++) {
+      const t = i / (gradientSteps - 1);
+      const r = Math.floor(0x10 + 0x1a * t);
+      const g = Math.floor(0x08 + 0x0c * t);
+      const b = Math.floor(0x06 + 0x08 * t);
+      const color = (r << 16) | (g << 8) | b;
+      bg.rect(0, i * stepH, GAME_WIDTH, stepH + 1).fill(color);
     }
-    this.container.addChild(this.bgGraphics);
+
+    // 天井の鍾乳石シルエット
+    const stalactiteCount = 9;
+    for (let i = 0; i < stalactiteCount; i++) {
+      const sx = (i + 0.5) * (GAME_WIDTH / stalactiteCount) + ((i * 37) % 13) - 6;
+      const w = 10 + ((i * 53) % 14);
+      const h = 18 + ((i * 71) % 30);
+      bg.poly([sx - w / 2, 0, sx + w / 2, 0, sx, h]).fill({ color: 0x0a0504, alpha: 0.9 });
+    }
+
+    // 地面（ごつごつした岩床）
+    const horizonY = GAME_HEIGHT * 0.4;
+    bg.rect(0, horizonY - 1, GAME_WIDTH, 2).fill({ color: 0x44281a, alpha: 0.5 });
+    const groundSteps = 12;
+    const groundH = GAME_HEIGHT * 0.15;
+    for (let i = 0; i < groundSteps; i++) {
+      const t = i / (groundSteps - 1);
+      const gr = Math.floor(0x1c + t * 0x10);
+      const gg = Math.floor(0x10 + t * 0x08);
+      const gb = Math.floor(0x0a + t * 0x06);
+      const gColor = (gr << 16) | (gg << 8) | gb;
+      bg.rect(0, horizonY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
+        .fill(gColor);
+    }
+
+    // 床の岩の影
+    for (let i = 0; i < 6; i++) {
+      const rx = ((i * 97) % GAME_WIDTH);
+      const ry = horizonY + 8 + ((i * 41) % Math.floor(groundH - 16));
+      bg.ellipse(rx, ry, 8 + ((i * 13) % 10), 3).fill({ color: 0x000000, alpha: 0.25 });
+    }
+
+    this.container.addChild(bg);
   }
 
   private drawEnemies(): void {
@@ -464,6 +536,15 @@ export class BattleScene extends Scene {
     // 背景パーティクルアニメーション
     this.updateBackground(delta);
 
+    // 敵の浮遊アニメーション（ゆっくり上下に揺れる）
+    this.bobTimer += delta;
+    this.battleState.enemies.forEach((enemy, i) => {
+      const c = this.enemyContainers[i];
+      if (c && enemy.isAlive) {
+        c.y = 80 + Math.sin(this.bobTimer * 0.06 + i * 1.7) * 2;
+      }
+    });
+
     switch (this.phase) {
       case 'result':
         if (input.isActionPressed) {
@@ -516,10 +597,29 @@ export class BattleScene extends Scene {
   private updateBackground(delta: number): void {
     this.bgAnimTimer += delta * 0.016;
     this.bgGraphics.clear();
+    const isCave = this.background === 'cave';
 
     for (const p of this.bgParticles) {
       p.twinklePhase += p.twinkleSpeed * delta;
       const alpha = p.brightness * (0.3 + 0.7 * Math.abs(Math.sin(p.twinklePhase)));
+
+      if (isCave) {
+        // 火の粉が揺らめきながら舞い上がる
+        p.y -= p.speed * delta * 0.25;
+        p.x += Math.sin(p.twinklePhase) * 0.15;
+        if (p.y < 0) {
+          p.y = GAME_HEIGHT * 0.38;
+          p.x = Math.random() * GAME_WIDTH;
+        }
+        this.bgGraphics.circle(p.x, p.y, p.size + 1).fill({ color: 0x883311, alpha: alpha * 0.2 });
+        this.bgGraphics.circle(p.x, p.y, p.size * 0.8).fill({ color: 0xcc6622, alpha: alpha * 0.7 });
+        if (p.size >= 1.5) {
+          this.bgGraphics.circle(p.x, p.y, p.size * 0.4).fill({ color: 0xffaa44, alpha });
+        }
+        continue;
+      }
+
+      // 星が静かに流れる
       p.y += p.speed * delta * 0.08;
 
       // 画面外に出たら上に戻す
@@ -1065,6 +1165,14 @@ export class BattleScene extends Scene {
       return;
     }
 
+    // 敵の攻撃時は突進モーション
+    if (result.action.actor === 'enemy' && result.action.type === 'attack') {
+      const actorContainer = this.enemyContainers[result.action.actorIndex];
+      if (actorContainer) {
+        this.effects.lunge(actorContainer);
+      }
+    }
+
     if (result.missed) {
       this.game.audio.playSeOrSynth('miss');
       return;
@@ -1110,13 +1218,14 @@ export class BattleScene extends Scene {
       }
     }
 
-    // 味方の攻撃呪文 → 敵にエフェクト
+    // 味方の攻撃呪文 → 敵に炎エフェクト
     if (result.action.actor === 'party' && result.action.type === 'spell' && result.damage && result.damage > 0) {
       const enemyIdx = result.action.targetIndex ?? 0;
       const enemyPos = this.getEnemyPosition(enemyIdx);
-      this.game.audio.playSeOrSynth('attack');
+      this.game.audio.playSeOrSynth('spell');
       this.effects.flash(0xff8833, 0.35, 250);
       this.effects.shake(this.enemyArea, 4, 250);
+      this.effects.showFireBurst(enemyPos.x, enemyPos.y);
       this.effects.showDamage(enemyPos.x, enemyPos.y - 25, result.damage, false);
 
       if (result.targetDied) {
@@ -1185,9 +1294,9 @@ export class BattleScene extends Scene {
   }
 
   private showVictory(): void {
-    // 勝利エフェクト
+    // 勝利エフェクト + ファンファーレ（戦闘BGMを止めてジングル再生）
     this.effects.victoryFlash();
-    this.game.audio.playSeOrSynth('victory');
+    this.game.audio.playJingle('fanfare');
 
     const rewards = this.battleState.getVictoryRewards();
     const messages: string[] = [];
@@ -1243,8 +1352,9 @@ export class BattleScene extends Scene {
   }
 
   private showDefeat(): void {
-    // 全滅エフェクト（暗転）
+    // 全滅エフェクト（暗転）+ ゲームオーバージングル
     this.effects.flash(0xff0000, 0.6, 800);
+    this.game.audio.playJingle('gameover');
     this.showMessages(['ぜんめつしてしまった...'], () => {
       this.phase = 'defeat';
       this.messageText.text = '▼ つづける';

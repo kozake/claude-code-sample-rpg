@@ -424,7 +424,7 @@ export class FieldScene extends Scene {
       }
       const field = new FieldScene(this.game, this.mapId, px, py);
       this.game.scenes.switchTo(field);
-    });
+    }, this.mapData?.isDungeon ? 'cave' : 'field');
     this.game.scenes.switchTo(battleScene);
   }
 
@@ -606,7 +606,7 @@ export class FieldScene extends Scene {
       // 戦闘後: フィールドに戻る
       const field = new FieldScene(this.game, this.mapId, this.player.tileX, this.player.tileY);
       this.game.scenes.switchTo(field);
-    });
+    }, this.mapData?.isDungeon ? 'cave' : 'field');
     this.game.scenes.switchTo(battleScene);
   }
 

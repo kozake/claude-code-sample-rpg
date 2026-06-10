@@ -301,6 +301,89 @@ export class BattleEffects {
     requestAnimationFrame(animate);
   }
 
+  /** 突進モーション（攻撃時に対象方向へ踏み込んで戻る） */
+  lunge(target: Container, distance = 12, duration = 250): void {
+    const startTime = performance.now();
+    const origPivotY = target.pivot.y;
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(1, elapsed / duration);
+
+      // 前半で踏み込み、後半で戻る（pivot.y を負にすると下方向に表示）
+      const t = progress < 0.4 ? progress / 0.4 : 1 - (progress - 0.4) / 0.6;
+      target.pivot.y = origPivotY - distance * easeOutQuad(t);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        target.pivot.y = origPivotY;
+      }
+    };
+    requestAnimationFrame(animate);
+  }
+
+  /** 炎の呪文エフェクト（火柱 + 火の粉） */
+  showFireBurst(x: number, y: number): void {
+    const fire = new Graphics();
+    this.effectLayer.addChild(fire);
+
+    const embers: { x: number; y: number; vx: number; vy: number; size: number; life: number }[] = [];
+    for (let i = 0; i < 14; i++) {
+      embers.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y + 10,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: -1 - Math.random() * 2,
+        size: 1.5 + Math.random() * 2,
+        life: 0.6 + Math.random() * 0.4,
+      });
+    }
+
+    const startTime = performance.now();
+    const duration = 550;
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(1, elapsed / duration);
+
+      fire.clear();
+
+      // 火柱（揺らぎながら立ち上る）
+      if (progress < 0.6) {
+        const p = progress / 0.6;
+        const flameH = 36 * Math.sin(p * Math.PI);
+        const wobble = Math.sin(elapsed * 0.04) * 3;
+        // 外炎
+        fire.ellipse(x + wobble * 0.5, y + 12 - flameH / 2, 14, flameH / 2 + 6)
+          .fill({ color: 0xee4411, alpha: 0.7 * (1 - p * 0.4) });
+        // 内炎
+        fire.ellipse(x + wobble, y + 14 - flameH / 2.4, 8, flameH / 2.4 + 3)
+          .fill({ color: 0xffaa22, alpha: 0.85 * (1 - p * 0.3) });
+        // 中心の白熱
+        fire.ellipse(x + wobble, y + 16 - flameH / 3, 4, flameH / 3)
+          .fill({ color: 0xffee99, alpha: 0.9 * (1 - p * 0.3) });
+      }
+
+      // 火の粉
+      for (const e of embers) {
+        e.x += e.vx;
+        e.y += e.vy;
+        e.life -= 0.025;
+        if (e.life > 0) {
+          fire.circle(e.x, e.y, e.size * e.life).fill({ color: 0xffcc44, alpha: e.life });
+        }
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        this.effectLayer.removeChild(fire);
+      }
+    };
+    requestAnimationFrame(animate);
+  }
+
   /** 敵撃破エフェクト（リッチ版 - 分解 + 赤フラッシュ） */
   enemyDeath(target: Container): Promise<void> {
     return new Promise((resolve) => {
