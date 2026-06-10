@@ -99,8 +99,8 @@
       "y": 5,
       "type": "treasure",
       "action": {
-        "message": ["たからばこをあけた！", "どうのつるぎを てにいれた！"],
-        "giveItem": { "id": "copper_sword", "count": 1 }
+        "message": ["たからばこをあけた！", "かわのたてを てにいれた！"],
+        "giveItem": { "id": "wooden_shield", "count": 1 }
       },
       "onceFlag": "treasure_cave_002"
     },

@@ -106,9 +106,10 @@
   "playerStart": { "x": 14, "y": 5 },
   "encounterRate": 15,
   "encounters": [
-    { "groupId": "slime_single", "weight": 40 },
-    { "groupId": "slime_group", "weight": 30 },
-    { "groupId": "bat_group", "weight": 30 }
+    { "groupId": "slime_single", "weight": 38 },
+    { "groupId": "slime_group", "weight": 27 },
+    { "groupId": "bat_group", "weight": 27 },
+    { "groupId": "skeleton_group", "weight": 8 }
   ],
   "npcs": [
     {

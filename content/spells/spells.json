@@ -1,0 +1,41 @@
+[
+  {
+    "id": "hoimi",
+    "name": "ホイミ",
+    "mpCost": 3,
+    "type": "heal",
+    "power": 30,
+    "element": "none",
+    "target": "oneAlly",
+    "usableInBattle": true,
+    "usableInField": true,
+    "learnLevel": 3,
+    "learnableBy": ["hero", "healer"]
+  },
+  {
+    "id": "gira",
+    "name": "ギラ",
+    "mpCost": 4,
+    "type": "damage",
+    "power": 18,
+    "element": "fire",
+    "target": "oneEnemy",
+    "usableInBattle": true,
+    "usableInField": false,
+    "learnLevel": 4,
+    "learnableBy": ["hero"]
+  },
+  {
+    "id": "behoimi",
+    "name": "ベホイミ",
+    "mpCost": 8,
+    "type": "heal",
+    "power": 80,
+    "element": "none",
+    "target": "oneAlly",
+    "usableInBattle": true,
+    "usableInField": true,
+    "learnLevel": 6,
+    "learnableBy": ["healer"]
+  }
+]

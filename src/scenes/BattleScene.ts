@@ -8,11 +8,14 @@ import { BattleEffects } from '../effects/BattleEffects';
 import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
-import type { EnemyData, PartyMember, ItemData } from '../data/types';
+import type { EnemyData, PartyMember, ItemData, SpellData } from '../data/types';
 
 const BASE = import.meta.env.BASE_URL;
 
-type BattlePhase = 'start' | 'command' | 'target' | 'battleItem' | 'battleItemTarget' | 'executing' | 'result' | 'victory' | 'defeat';
+type BattlePhase =
+  | 'start' | 'command' | 'target' | 'battleItem' | 'battleItemTarget'
+  | 'spellSelect' | 'spellTargetEnemy' | 'spellTargetAlly'
+  | 'executing' | 'result' | 'victory' | 'defeat';
 
 /** 戦闘背景のパーティクル */
 interface BgParticle {
@@ -50,6 +53,9 @@ export class BattleScene extends Scene {
   private selectedBattleItem: ItemData | null = null;
   private itemCursor = 0;
   private allyTargetCursor = 0;
+  private memberSpells: SpellData[] = [];
+  private selectedSpell: SpellData | null = null;
+  private spellCursor = 0;
 
   // UI containers
   private enemyArea = new Container();
@@ -68,6 +74,11 @@ export class BattleScene extends Scene {
 
   // アクション結果キュー（エフェクト連携用）
   private actionResultQueue: ActionResult[] = [];
+
+  // 敵表示（撃破アニメーション用に敵ごとのコンテナを保持）
+  private enemyContainers: (Container | null)[] = [];
+  private enemyHpBars: (Graphics | null)[] = [];
+  private enemyDeathAnimated = new Set<number>();
 
   constructor(game: Game, enemies: EnemyData[], onBattleEnd: (victory: boolean) => void) {
     super(game);
@@ -175,66 +186,92 @@ export class BattleScene extends Scene {
 
   private drawEnemies(): void {
     this.enemyArea.removeChildren();
+    this.enemyContainers = [];
+    this.enemyHpBars = [];
 
     this.battleState.enemies.forEach((enemy, i) => {
-      const ex = GAME_WIDTH / 2 - ((this.battleState.enemies.length - 1) * 70) / 2 + i * 70;
-      const ey = 80;
-
-      if (enemy.isAlive) {
-        // 足元の影
-        const shadow = new Graphics();
-        shadow.ellipse(ex, ey + 34, 20, 5).fill({ color: 0x000000, alpha: 0.25 });
-        this.enemyArea.addChild(shadow);
-
-        // スプライト画像を試みる
-        const spriteId = enemy.data.sprite;
-        if (spriteId) {
-          const tex = Assets.get<Texture>(`${BASE}assets/sprites/enemies/${spriteId}.png`);
-          if (tex) {
-            const sprite = new Sprite(tex);
-            sprite.anchor.set(0.5);
-            sprite.x = ex;
-            sprite.y = ey;
-            this.enemyArea.addChild(sprite);
-          } else {
-            this.drawEnemyFallback(ex, ey);
-          }
-        } else {
-          this.drawEnemyFallback(ex, ey);
-        }
-
-        const name = new Text({ text: enemy.data.name, style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 9, fill: COLORS.TEXT }) });
-        name.anchor.set(0.5);
-        name.x = ex;
-        name.y = ey + 40;
-        this.enemyArea.addChild(name);
-
-        // HP バー
-        const hpRatio = enemy.currentHp / enemy.data.hp;
-        const barW = 40;
-        const bar = new Graphics();
-        bar.rect(ex - barW / 2, ey + 48, barW, 3).fill(0x333333);
-        bar.rect(ex - barW / 2, ey + 48, barW * hpRatio, 3).fill(hpRatio > 0.3 ? COLORS.HP_GREEN : COLORS.HP_RED);
-        this.enemyArea.addChild(bar);
+      if (!enemy.isAlive) {
+        this.enemyContainers.push(null);
+        this.enemyHpBars.push(null);
+        return;
       }
+
+      const pos = this.getEnemyPosition(i);
+      const c = new Container();
+      c.position.set(pos.x, pos.y);
+
+      // 足元の影
+      const shadow = new Graphics();
+      shadow.ellipse(0, 34, 20, 5).fill({ color: 0x000000, alpha: 0.25 });
+      c.addChild(shadow);
+
+      // スプライト画像を試みる
+      const spriteId = enemy.data.sprite;
+      const tex = spriteId ? Assets.get<Texture>(`${BASE}assets/sprites/enemies/${spriteId}.png`) : null;
+      if (tex) {
+        const sprite = new Sprite(tex);
+        sprite.anchor.set(0.5);
+        c.addChild(sprite);
+      } else {
+        this.drawEnemyFallback(c);
+      }
+
+      const name = new Text({ text: enemy.data.name, style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 9, fill: COLORS.TEXT }) });
+      name.anchor.set(0.5);
+      name.y = 40;
+      c.addChild(name);
+
+      // HP バー
+      const bar = new Graphics();
+      this.drawEnemyHpBar(bar, enemy.currentHp / enemy.data.hp);
+      c.addChild(bar);
+
+      this.enemyArea.addChild(c);
+      this.enemyContainers.push(c);
+      this.enemyHpBars.push(bar);
     });
 
     this.container.addChild(this.enemyArea);
   }
 
-  private drawEnemyFallback(ex: number, ey: number): void {
+  private drawEnemyHpBar(bar: Graphics, hpRatio: number): void {
+    const barW = 40;
+    bar.clear();
+    bar.rect(-barW / 2, 48, barW, 3).fill(0x333333);
+    if (hpRatio > 0) {
+      bar.rect(-barW / 2, 48, barW * hpRatio, 3).fill(hpRatio > 0.3 ? COLORS.HP_GREEN : COLORS.HP_RED);
+    }
+  }
+
+  /** ターン中の敵表示更新（HPバー更新 + 撃破アニメーション） */
+  private updateEnemyVisuals(): void {
+    this.battleState.enemies.forEach((enemy, i) => {
+      const c = this.enemyContainers[i];
+      if (!c) return;
+
+      if (enemy.isAlive) {
+        const bar = this.enemyHpBars[i];
+        if (bar) this.drawEnemyHpBar(bar, enemy.currentHp / enemy.data.hp);
+      } else if (!this.enemyDeathAnimated.has(i)) {
+        this.enemyDeathAnimated.add(i);
+        this.effects.enemyDeath(c);
+      }
+    });
+  }
+
+  private drawEnemyFallback(parent: Container): void {
     const rect = new Graphics();
     // シャドウ
-    rect.ellipse(ex, ey + 20, 16, 4).fill({ color: 0x000000, alpha: 0.3 });
+    rect.ellipse(0, 20, 16, 4).fill({ color: 0x000000, alpha: 0.3 });
     // ボディ（グラデーション風）
-    rect.roundRect(ex - 16, ey - 16, 32, 32, 4).fill(0x882233);
-    rect.roundRect(ex - 15, ey - 15, 30, 14, 3).fill({ color: 0xcc4455, alpha: 0.5 });
+    rect.roundRect(-16, -16, 32, 32, 4).fill(0x882233);
+    rect.roundRect(-15, -15, 30, 14, 3).fill({ color: 0xcc4455, alpha: 0.5 });
     // 目（2つの光点）
-    rect.circle(ex - 5, ey - 4, 2).fill(0xffee88);
-    rect.circle(ex + 5, ey - 4, 2).fill(0xffee88);
+    rect.circle(-5, -4, 2).fill(0xffee88);
+    rect.circle(5, -4, 2).fill(0xffee88);
     // 枠
-    rect.roundRect(ex - 16, ey - 16, 32, 32, 4).stroke({ color: 0xff6677, width: 1, alpha: 0.6 });
-    this.enemyArea.addChild(rect);
+    rect.roundRect(-16, -16, 32, 32, 4).stroke({ color: 0xff6677, width: 1, alpha: 0.6 });
+    parent.addChild(rect);
   }
 
   private drawPartyStatus(): void {
@@ -451,6 +488,18 @@ export class BattleScene extends Scene {
         this.handleBattleItemTargetInput(input);
         break;
 
+      case 'spellSelect':
+        this.handleSpellSelectInput(input);
+        break;
+
+      case 'spellTargetEnemy':
+        this.handleSpellTargetEnemyInput(input);
+        break;
+
+      case 'spellTargetAlly':
+        this.handleSpellTargetAllyInput(input);
+        break;
+
       case 'victory':
       case 'defeat':
         if (input.isActionPressed) {
@@ -521,9 +570,8 @@ export class BattleScene extends Scene {
         case 4: // にげる
           this.executeFlee();
           break;
-        case 1:
-          // じゅもんは後のPhaseで
-          this.messageText.text = 'まだ つかえません。';
+        case 1: // じゅもん
+          this.openSpellSelect();
           break;
         case 2: // どうぐ
           this.openBattleItemSelect();
@@ -569,6 +617,159 @@ export class BattleScene extends Scene {
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
+    }
+  }
+
+  private openSpellSelect(): void {
+    const member = this.battleState.party[this.currentMemberIdx];
+    this.memberSpells = member.spells
+      .map((id) => this.game.spells.get(id))
+      .filter((s): s is SpellData => !!s && s.usableInBattle);
+
+    if (this.memberSpells.length === 0) {
+      this.messageText.text = 'じゅもんを おぼえていない。';
+      return;
+    }
+
+    this.phase = 'spellSelect';
+    this.spellCursor = 0;
+    this.drawSpellSelect();
+  }
+
+  private drawSpellSelect(): void {
+    this.commandArea.removeChildren();
+
+    const member = this.battleState.party[this.currentMemberIdx];
+    const winH = this.memberSpells.length * 24 + 12;
+    const win = new Window(8, 150, 190, winH);
+    this.commandArea.addChild(win);
+
+    this.memberSpells.forEach((spell, i) => {
+      const usable = member.mp >= spell.mpCost;
+      const style = new TextStyle({
+        fontFamily: FONT_FAMILY,
+        fontSize: 13,
+        fill: usable ? COLORS.TEXT : COLORS.TEXT_DISABLED,
+      });
+      const text = new Text({ text: spell.name, style });
+      text.x = 32;
+      text.y = 158 + i * 24;
+      this.commandArea.addChild(text);
+
+      const cost = new Text({
+        text: `MP${spell.mpCost}`,
+        style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: usable ? COLORS.MP_BLUE : COLORS.TEXT_DISABLED }),
+      });
+      cost.x = 150;
+      cost.y = 158 + i * 24;
+      this.commandArea.addChild(cost);
+    });
+
+    const cursor = new Text({
+      text: '▶',
+      style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.CURSOR }),
+    });
+    cursor.x = 16;
+    cursor.y = 160 + this.spellCursor * 24;
+    this.commandArea.addChild(cursor);
+
+    this.container.addChild(this.commandArea);
+  }
+
+  private handleSpellSelectInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.spellCursor > 0) {
+      this.spellCursor--;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawSpellSelect();
+    } else if (dir === 'down' && this.spellCursor < this.memberSpells.length - 1) {
+      this.spellCursor++;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawSpellSelect();
+    }
+
+    if (input.isActionPressed) {
+      const member = this.battleState.party[this.currentMemberIdx];
+      const spell = this.memberSpells[this.spellCursor];
+      if (member.mp < spell.mpCost) {
+        this.game.audio.playSeOrSynth('cancel');
+        this.messageText.text = 'MPが たりない！';
+        return;
+      }
+      this.game.audio.playSeOrSynth('confirm');
+      this.selectedSpell = spell;
+
+      if (spell.target === 'oneEnemy' || spell.target === 'allEnemies') {
+        this.phase = 'spellTargetEnemy';
+        this.targetCursor = 0;
+        this.drawTargetSelect();
+      } else {
+        this.phase = 'spellTargetAlly';
+        this.allyTargetCursor = 0;
+        this.drawAllyTargetSelect();
+      }
+    }
+
+    if (input.isCancelPressed) {
+      this.game.audio.playSeOrSynth('cancel');
+      this.phase = 'command';
+      this.drawCommandWindow();
+    }
+  }
+
+  private handleSpellTargetEnemyInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const aliveEnemies = this.battleState.enemies
+      .map((e, i) => ({ enemy: e, index: i }))
+      .filter((e) => e.enemy.isAlive);
+
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.targetCursor > 0) {
+      this.targetCursor--;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawTargetSelect();
+    } else if (dir === 'down' && this.targetCursor < aliveEnemies.length - 1) {
+      this.targetCursor++;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawTargetSelect();
+    }
+
+    if (input.isActionPressed && this.selectedSpell) {
+      this.game.audio.playSeOrSynth('confirm');
+      const target = aliveEnemies[this.targetCursor];
+      this.partyActions.push({ type: 'spell', spellId: this.selectedSpell.id, targetIndex: target.index });
+      this.nextMemberOrExecute();
+    }
+
+    if (input.isCancelPressed) {
+      this.game.audio.playSeOrSynth('cancel');
+      this.phase = 'spellSelect';
+      this.drawSpellSelect();
+    }
+  }
+
+  private handleSpellTargetAllyInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const party = this.battleState.party;
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.allyTargetCursor > 0) {
+      this.allyTargetCursor--;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawAllyTargetSelect();
+    } else if (dir === 'down' && this.allyTargetCursor < party.length - 1) {
+      this.allyTargetCursor++;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawAllyTargetSelect();
+    }
+
+    if (input.isActionPressed && this.selectedSpell) {
+      this.game.audio.playSeOrSynth('confirm');
+      this.partyActions.push({ type: 'spell', spellId: this.selectedSpell.id, targetIndex: this.allyTargetCursor });
+      this.nextMemberOrExecute();
+    }
+
+    if (input.isCancelPressed) {
+      this.game.audio.playSeOrSynth('cancel');
+      this.phase = 'spellSelect';
+      this.drawSpellSelect();
     }
   }
 
@@ -775,6 +976,11 @@ export class BattleScene extends Scene {
           if (action.type === 'item' && action.itemId) {
             return this.executeItemAction(m, action.itemId, action.targetIndex ?? i);
           }
+          if (action.type === 'spell' && action.spellId) {
+            const spell = this.game.spells.get(action.spellId);
+            if (!spell) return this.emptyResult(m.name);
+            return this.battleState.executePartySpell(i, spell, action.targetIndex ?? i);
+          }
           return this.emptyResult(m.name);
         },
       });
@@ -842,9 +1048,9 @@ export class BattleScene extends Scene {
     // アクションに応じたエフェクトとSEを再生
     this.playActionEffects(result);
 
-    // ステータス中間更新
+    // ステータス中間更新（敵はHPバー更新 + 撃破アニメーション）
     this.drawPartyStatus();
-    this.drawEnemies();
+    this.updateEnemyVisuals();
 
     // メッセージ表示後に次のアクションへ
     this.showMessages(result.messages, () => {
@@ -901,6 +1107,20 @@ export class BattleScene extends Scene {
         this.game.audio.playSeOrSynth('damage');
         this.effects.flash(0xff0000, 0.3, 200);
         this.effects.shake(this.container, 3, 200);
+      }
+    }
+
+    // 味方の攻撃呪文 → 敵にエフェクト
+    if (result.action.actor === 'party' && result.action.type === 'spell' && result.damage && result.damage > 0) {
+      const enemyIdx = result.action.targetIndex ?? 0;
+      const enemyPos = this.getEnemyPosition(enemyIdx);
+      this.game.audio.playSeOrSynth('attack');
+      this.effects.flash(0xff8833, 0.35, 250);
+      this.effects.shake(this.enemyArea, 4, 250);
+      this.effects.showDamage(enemyPos.x, enemyPos.y - 25, result.damage, false);
+
+      if (result.targetDied) {
+        this.game.audio.playSeOrSynth('enemyDeath');
       }
     }
 
@@ -984,9 +1204,10 @@ export class BattleScene extends Scene {
       m.exp += expEach;
     }
 
-    // ドロップアイテム
+    // ドロップアイテム（アイテムマスタから名前を取得）
     for (const drop of rewards.drops) {
-      messages.push(`${drop.name}を てにいれた！`);
+      const dropName = this.itemDataMap.get(drop.id)?.name ?? drop.name;
+      messages.push(`${dropName}を てにいれた！`);
       this.game.state.addItem(drop.id);
     }
 

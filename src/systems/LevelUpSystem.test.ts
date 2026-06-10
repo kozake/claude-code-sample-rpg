@@ -164,4 +164,61 @@ describe('LevelUpSystem', () => {
       expect(messages).toContain('ゆうしゃは ホイミを おぼえた！');
     });
   });
+
+  // ================================================================
+  // 呪文習得
+  // ================================================================
+  describe('呪文習得', () => {
+    const hoimi = {
+      id: 'hoimi',
+      name: 'ホイミ',
+      mpCost: 3,
+      type: 'heal' as const,
+      power: 30,
+      element: 'none' as const,
+      target: 'oneAlly' as const,
+      usableInBattle: true,
+      usableInField: true,
+      learnLevel: 2,
+      learnableBy: ['warrior'],
+    };
+
+    it('習得レベル到達で呪文を覚える', () => {
+      system.loadSpells([hoimi]);
+      const member = makeMember({ exp: 100 });
+      const result = system.checkLevelUp(member);
+      expect(result!.newSpells).toEqual(['ホイミ']);
+      expect(member.spells).toContain('hoimi');
+    });
+
+    it('習得レベル未到達では覚えない', () => {
+      system.loadSpells([{ ...hoimi, learnLevel: 3 }]);
+      const member = makeMember({ exp: 100 });
+      const result = system.checkLevelUp(member);
+      expect(result!.newSpells).toEqual([]);
+      expect(member.spells).not.toContain('hoimi');
+    });
+
+    it('クラスが対象外なら覚えない', () => {
+      system.loadSpells([{ ...hoimi, learnableBy: ['healer'] }]);
+      const member = makeMember({ exp: 100 });
+      const result = system.checkLevelUp(member);
+      expect(result!.newSpells).toEqual([]);
+    });
+
+    it('習得済みの呪文は重複しない', () => {
+      system.loadSpells([hoimi]);
+      const member = makeMember({ exp: 100, spells: ['hoimi'] });
+      const result = system.checkLevelUp(member);
+      expect(result!.newSpells).toEqual([]);
+      expect(member.spells).toEqual(['hoimi']);
+    });
+
+    it('習得レベルを過ぎていても未習得なら覚える（遡及習得）', () => {
+      system.loadSpells([{ ...hoimi, learnLevel: 1 }]);
+      const member = makeMember({ exp: 100 });
+      const result = system.checkLevelUp(member);
+      expect(result!.newSpells).toEqual(['ホイミ']);
+    });
+  });
 });

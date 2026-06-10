@@ -1,4 +1,4 @@
-import type { PartyMember, LevelTable, LevelUpEntry } from '../data/types';
+import type { PartyMember, LevelTable, LevelUpEntry, SpellData } from '../data/types';
 
 export interface LevelUpResult {
   member: PartyMember;
@@ -21,12 +21,18 @@ export interface LevelUpResult {
  */
 export class LevelUpSystem {
   private tables: Map<string, LevelUpEntry[]> = new Map();
+  private spells: SpellData[] = [];
 
   /** レベルテーブルをロード */
   loadTables(tables: LevelTable[]): void {
     for (const table of tables) {
       this.tables.set(table.classId, table.entries);
     }
+  }
+
+  /** 呪文マスタをロード（レベルアップ時の習得判定に使用） */
+  loadSpells(spells: SpellData[]): void {
+    this.spells = spells;
   }
 
   /** 経験値に基づいてレベルアップ判定 */
@@ -58,12 +64,25 @@ export class LevelUpSystem {
     member.hp = Math.min(member.hp + Math.max(0, gains.maxHp), member.maxHp);
     member.mp = Math.min(member.mp + Math.max(0, gains.maxMp), member.maxMp);
 
+    // 習得呪文チェック（到達レベル以下で未習得のものをすべて覚える）
+    const newSpells: string[] = [];
+    for (const spell of this.spells) {
+      if (
+        spell.learnLevel <= member.level &&
+        spell.learnableBy.includes(member.class) &&
+        !member.spells.includes(spell.id)
+      ) {
+        member.spells.push(spell.id);
+        newSpells.push(spell.name);
+      }
+    }
+
     return {
       member,
       oldLevel,
       newLevel: member.level,
       gains,
-      newSpells: [], // TODO: 習得呪文チェック
+      newSpells,
     };
   }
 
