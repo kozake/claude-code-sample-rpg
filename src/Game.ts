@@ -7,7 +7,7 @@ import { InputManager } from './systems/InputManager';
 import { GameState } from './systems/GameState';
 import { AudioManager } from './systems/AudioManager';
 import { LevelUpSystem } from './systems/LevelUpSystem';
-import type { LevelTable } from './data/types';
+import type { LevelTable, SpellData } from './data/types';
 
 export class Game {
   readonly app: Application;
@@ -18,6 +18,9 @@ export class Game {
   readonly state = new GameState();
   readonly audio = new AudioManager();
   readonly levelUp = new LevelUpSystem();
+
+  /** 呪文マスタ（id → SpellData） */
+  readonly spells = new Map<string, SpellData>();
 
   /** ストーリーフラグ（セーブ/ロード対象） */
   storyFlags: Record<string, boolean | number | string> = {};
@@ -47,6 +50,15 @@ export class Game {
     const levelTables = await game.content.loadJson<LevelTable[]>('data/level_tables.json');
     if (levelTables) {
       game.levelUp.loadTables(levelTables);
+    }
+
+    // 呪文マスタ読み込み
+    const spellList = await game.content.loadJson<SpellData[]>('spells/spells.json');
+    if (spellList) {
+      for (const spell of spellList) {
+        game.spells.set(spell.id, spell);
+      }
+      game.levelUp.loadSpells(spellList);
     }
 
     game.setupScaling();

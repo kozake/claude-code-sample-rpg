@@ -1,4 +1,4 @@
-import type { PartyMember, EnemyData, EnemySkill, ElementType, ResistLevel, StatusEffect } from '../data/types';
+import type { PartyMember, EnemyData, EnemySkill, ResistLevel, SpellData, StatusEffect } from '../data/types';
 
 /** 戦闘中の敵インスタンス */
 export interface BattleEnemy {
@@ -132,6 +132,82 @@ export class BattleState {
     };
   }
 
+  /** パーティメンバーの呪文使用 */
+  executePartySpell(partyIdx: number, spell: SpellData, targetIdx: number): ActionResult {
+    const member = this.party[partyIdx];
+    const action = {
+      type: 'spell' as const,
+      actor: 'party' as const,
+      actorIndex: partyIdx,
+      targetIndex: targetIdx,
+      spellId: spell.id,
+    };
+    const messages: string[] = [`${member.name}は ${spell.name}を となえた！`];
+
+    if (member.mp < spell.mpCost) {
+      messages.push('しかし MPが たりない！');
+      return { action, actorName: member.name, missed: true, critical: false, messages, targetDied: false };
+    }
+    member.mp -= spell.mpCost;
+
+    if (spell.type === 'heal') {
+      const target = this.party[targetIdx] ?? member;
+      if (target.hp <= 0) {
+        messages.push(`しかし ${target.name}には きかなかった！`);
+        return { action, actorName: member.name, targetName: target.name, missed: true, critical: false, messages, targetDied: false };
+      }
+      const base = spell.power;
+      const variance = Math.floor(base * 0.2);
+      const amount = base + Math.floor(Math.random() * (variance * 2 + 1)) - variance;
+      const healed = Math.min(amount, target.maxHp - target.hp);
+      target.hp += healed;
+      messages.push(`${target.name}の HPが ${healed} かいふくした！`);
+      return { action, actorName: member.name, targetName: target.name, healed, missed: false, critical: false, messages, targetDied: false };
+    }
+
+    if (spell.type === 'damage') {
+      let enemyIdx = targetIdx;
+      if (!this.enemies[enemyIdx]?.isAlive) {
+        enemyIdx = this.enemies.findIndex((e) => e.isAlive);
+        if (enemyIdx < 0) {
+          return { action, actorName: member.name, missed: true, critical: false, messages, targetDied: false };
+        }
+      }
+      const enemy = this.enemies[enemyIdx];
+      const mult = BattleState.elementMultiplier(enemy.data.resistances?.[spell.element]);
+      const base = spell.power;
+      const variance = Math.floor(base * 0.2);
+      const damage = Math.floor((base + Math.floor(Math.random() * (variance * 2 + 1)) - variance) * mult);
+      let targetDied = false;
+
+      if (damage <= 0) {
+        messages.push(`しかし ${enemy.data.name}には きかなかった！`);
+      } else {
+        enemy.currentHp -= damage;
+        messages.push(`${enemy.data.name}に ${damage}の ダメージ！`);
+        if (enemy.currentHp <= 0) {
+          enemy.currentHp = 0;
+          enemy.isAlive = false;
+          targetDied = true;
+          messages.push(`${enemy.data.name}を たおした！`);
+        }
+      }
+      return {
+        action: { ...action, targetIndex: enemyIdx },
+        actorName: member.name,
+        targetName: enemy.data.name,
+        damage,
+        missed: damage <= 0,
+        critical: false,
+        messages,
+        targetDied,
+      };
+    }
+
+    messages.push('しかし なにも おこらなかった！');
+    return { action, actorName: member.name, missed: true, critical: false, messages, targetDied: false };
+  }
+
   /** 敵 → パーティメンバーへの攻撃 */
   executeEnemyAction(enemyIdx: number): ActionResult {
     const enemy = this.enemies[enemyIdx];
@@ -183,6 +259,37 @@ export class BattleState {
     const target = aliveMembers[Math.floor(Math.random() * aliveMembers.length)];
     const targetIdx = this.party.indexOf(target);
     targetName = target.name;
+
+    // 固定威力の特技・呪文（ぼうぎょで半減、回避不可）
+    if ((skill.type === 'skill' || skill.type === 'spell') && skill.power) {
+      messages.push(`${enemy.data.name}の ${skill.skillName ?? 'こうげき'}！`);
+      const variance = Math.floor(skill.power * 0.2);
+      damage = skill.power + Math.floor(Math.random() * (variance * 2 + 1)) - variance;
+      if (this.partyDefending.has(targetIdx)) {
+        damage = Math.floor(damage / 2);
+      }
+      damage = Math.max(1, damage);
+
+      target.hp -= damage;
+      messages.push(`${target.name}に ${damage}の ダメージ！`);
+
+      if (target.hp <= 0) {
+        target.hp = 0;
+        targetDied = true;
+        messages.push(`${target.name}は ちからつきた...`);
+      }
+
+      return {
+        action: { type: 'attack', actor: 'enemy', actorIndex: enemyIdx, targetIndex: targetIdx },
+        actorName: enemy.data.name,
+        targetName,
+        damage,
+        missed: false,
+        critical: true,
+        messages,
+        targetDied,
+      };
+    }
 
     messages.push(`${enemy.data.name}の こうげき！`);
 
@@ -244,11 +351,20 @@ export class BattleState {
 
   /** 逃走判定 */
   attemptFlee(): { success: boolean; messages: string[] } {
+    // 逃走耐性100以上の敵（ボス）からは逃げられない
+    const maxFleeResistance = Math.max(
+      0,
+      ...this.enemies.filter((e) => e.isAlive).map((e) => e.data.fleeResistance ?? 0)
+    );
+    if (maxFleeResistance >= 100) {
+      return { success: false, messages: ['しかし まわりこまれてしまった！'] };
+    }
+
     const avgPartySpeed = this.party.reduce((sum, m) => sum + m.speed, 0) / this.party.length;
     const avgEnemySpeed = this.enemies.reduce((sum, e) => sum + e.data.speed, 0) / this.enemies.length;
 
-    // 逃走成功率: 基本50% + (パーティ速度 - 敵速度) * 2%
-    const baseChance = 50 + (avgPartySpeed - avgEnemySpeed) * 2;
+    // 逃走成功率: 基本50% + (パーティ速度 - 敵速度) * 2% - 逃走耐性 * 0.3%
+    const baseChance = 50 + (avgPartySpeed - avgEnemySpeed) * 2 - maxFleeResistance * 0.3;
     const chance = Math.max(10, Math.min(90, baseChance));
 
     if (Math.random() * 100 < chance) {

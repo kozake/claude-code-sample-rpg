@@ -32,7 +32,10 @@
       { "fileName": "village", "author": "", "source": "", "license": "", "note": "村" },
       { "fileName": "dungeon", "author": "", "source": "", "license": "", "note": "ダンジョン" },
       { "fileName": "battle", "author": "", "source": "", "license": "", "note": "戦闘" },
-      { "fileName": "victory", "author": "", "source": "", "license": "", "note": "勝利" }
+      { "fileName": "victory", "author": "", "source": "", "license": "", "note": "勝利" },
+      { "fileName": "boss", "author": "自動生成", "source": "tools/generate-bgm.ts", "license": "CC0", "note": "ボス戦" },
+      { "fileName": "fanfare", "author": "自動生成", "source": "tools/generate-bgm.ts", "license": "CC0", "note": "勝利ファンファーレ" },
+      { "fileName": "gameover", "author": "自動生成", "source": "tools/generate-bgm.ts", "license": "CC0", "note": "ゲームオーバー" }
     ],
     "se": [
       { "fileName": "cursor", "author": "", "source": "", "license": "" },

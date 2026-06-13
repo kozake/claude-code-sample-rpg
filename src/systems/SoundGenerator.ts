@@ -155,6 +155,16 @@ export class SoundGenerator {
     defend: (ctx, vol) => {
       this.playTone(ctx, 'triangle', 330, 0.15, vol * 0.2);
     },
+
+    /** 攻撃呪文（炎の唸り + 上昇音） */
+    spell: (ctx, vol) => {
+      const t = ctx.currentTime;
+      this.playNoise(ctx, 0.3, vol * 0.25, 1200);
+      for (let i = 0; i < 5; i++) {
+        this.playTone(ctx, 'sawtooth', 220 + i * 110, 0.08, vol * 0.2, t + i * 0.05);
+      }
+      this.playTone(ctx, 'square', 880, 0.15, vol * 0.2, t + 0.25);
+    },
   };
 
   // ---- ユーティリティ ----

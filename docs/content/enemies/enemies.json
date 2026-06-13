@@ -6,8 +6,8 @@
     "attack": 5,
     "defense": 3,
     "speed": 3,
-    "exp": 2,
-    "gold": 3,
+    "exp": 3,
+    "gold": 5,
     "sprite": "slime",
     "skills": [
       { "type": "attack", "weight": 100 }
@@ -23,8 +23,8 @@
     "attack": 5,
     "defense": 3,
     "speed": 6,
-    "exp": 3,
-    "gold": 4,
+    "exp": 4,
+    "gold": 7,
     "sprite": "bat",
     "skills": [
       { "type": "attack", "weight": 80 },
@@ -41,8 +41,8 @@
     "attack": 12,
     "defense": 8,
     "speed": 5,
-    "exp": 8,
-    "gold": 10,
+    "exp": 14,
+    "gold": 20,
     "sprite": "skeleton",
     "skills": [
       { "type": "attack", "weight": 70 },
@@ -60,8 +60,8 @@
     "attack": 7,
     "defense": 3,
     "speed": 5,
-    "exp": 4,
-    "gold": 6,
+    "exp": 7,
+    "gold": 12,
     "sprite": "goblin",
     "skills": [
       { "type": "attack", "weight": 85 },
@@ -79,8 +79,8 @@
     "attack": 10,
     "defense": 2,
     "speed": 9,
-    "exp": 6,
-    "gold": 8,
+    "exp": 10,
+    "gold": 16,
     "sprite": "goblin_archer",
     "skills": [
       { "type": "attack", "weight": 100 }
@@ -97,8 +97,8 @@
     "attack": 16,
     "defense": 8,
     "speed": 6,
-    "exp": 50,
-    "gold": 100,
+    "exp": 60,
+    "gold": 150,
     "sprite": "goblin_king",
     "skills": [
       { "type": "attack", "weight": 50 },

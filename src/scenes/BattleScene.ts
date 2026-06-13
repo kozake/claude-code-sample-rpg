@@ -8,11 +8,14 @@ import { BattleEffects } from '../effects/BattleEffects';
 import { LevelUpSystem } from '../systems/LevelUpSystem';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, FONT_FAMILY } from '../constants';
 import type { Game } from '../Game';
-import type { EnemyData, PartyMember, ItemData } from '../data/types';
+import type { EnemyData, PartyMember, ItemData, SpellData } from '../data/types';
 
 const BASE = import.meta.env.BASE_URL;
 
-type BattlePhase = 'start' | 'command' | 'target' | 'battleItem' | 'battleItemTarget' | 'executing' | 'result' | 'victory' | 'defeat';
+type BattlePhase =
+  | 'start' | 'command' | 'target' | 'battleItem' | 'battleItemTarget'
+  | 'spellSelect' | 'spellTargetEnemy' | 'spellTargetAlly'
+  | 'executing' | 'result' | 'victory' | 'defeat';
 
 /** 戦闘背景のパーティクル */
 interface BgParticle {
@@ -50,6 +53,9 @@ export class BattleScene extends Scene {
   private selectedBattleItem: ItemData | null = null;
   private itemCursor = 0;
   private allyTargetCursor = 0;
+  private memberSpells: SpellData[] = [];
+  private selectedSpell: SpellData | null = null;
+  private spellCursor = 0;
 
   // UI containers
   private enemyArea = new Container();
@@ -66,17 +72,36 @@ export class BattleScene extends Scene {
   private bgGraphics = new Graphics();
   private bgAnimTimer = 0;
 
+  // 背景テーマ（マップに応じて切り替え）
+  private background: 'field' | 'cave';
+
+  // 敵の浮遊アニメーション用タイマー
+  private bobTimer = 0;
+
   // アクション結果キュー（エフェクト連携用）
   private actionResultQueue: ActionResult[] = [];
 
-  constructor(game: Game, enemies: EnemyData[], onBattleEnd: (victory: boolean) => void) {
+  // 敵表示（撃破アニメーション用に敵ごとのコンテナを保持）
+  private enemyContainers: (Container | null)[] = [];
+  private enemyHpBars: (Graphics | null)[] = [];
+  private enemyDeathAnimated = new Set<number>();
+
+  constructor(
+    game: Game,
+    enemies: EnemyData[],
+    onBattleEnd: (victory: boolean) => void,
+    background: 'field' | 'cave' = 'field'
+  ) {
     super(game);
     this.battleState = new BattleState([...game.state.active], enemies);
     this.onBattleEnd = onBattleEnd;
+    this.background = background;
   }
 
   async onEnter(): Promise<void> {
-    this.game.audio.playBgm('battle');
+    // ボス戦（逃走耐性100以上）は専用BGM
+    const isBoss = this.battleState.enemies.some((e) => (e.data.fleeResistance ?? 0) >= 100);
+    this.game.audio.playBgm(isBoss ? 'boss' : 'battle');
 
     // アイテムマスタ読み込み
     const allItems = await this.game.content.loadJson<ItemData[]>('items/items.json');
@@ -107,9 +132,8 @@ export class BattleScene extends Scene {
     this.container.addChild(dpad.container);
     this.container.addChild(actionBtn.container);
 
-    // 戦闘開始SE + トランジション
+    // 戦闘開始SE（画面遷移フェードはSceneManagerが行う）
     this.game.audio.playSeOrSynth('battleStart');
-    await this.effects.battleTransition();
 
     // 開始メッセージ
     const enemyNames = this.battleState.enemies.map((e) => e.data.name).join('と ');
@@ -122,6 +146,31 @@ export class BattleScene extends Scene {
   }
 
   private drawBackground(): void {
+    if (this.background === 'cave') {
+      this.drawCaveBackground();
+    } else {
+      this.drawFieldBackground();
+    }
+
+    // 背景パーティクル（フィールド=星空 / 洞窟=舞い上がる火の粉）
+    this.bgParticles = [];
+    const particleCount = this.background === 'cave' ? 30 : 50;
+    for (let i = 0; i < particleCount; i++) {
+      this.bgParticles.push({
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT * 0.38,
+        speed: 0.05 + Math.random() * 0.2,
+        size: Math.random() < 0.1 ? 2.5 : Math.random() < 0.3 ? 1.5 : 0.8,
+        brightness: 0.2 + Math.random() * 0.8,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.015 + Math.random() * 0.035,
+      });
+    }
+    this.container.addChild(this.bgGraphics);
+  }
+
+  /** フィールド戦闘背景（星空 + 草原の地面） */
+  private drawFieldBackground(): void {
     // リッチグラデーション背景（暗い紺 → 紫 → 深い藍）
     const bg = new Graphics();
     const gradientSteps = 24;
@@ -138,103 +187,163 @@ export class BattleScene extends Scene {
 
     // 地平線ライン
     const horizonY = GAME_HEIGHT * 0.4;
-    bg.rect(0, horizonY - 1, GAME_WIDTH, 1).fill({ color: 0x303060, alpha: 0.5 });
-    bg.rect(0, horizonY, GAME_WIDTH, 1).fill({ color: 0x202050, alpha: 0.3 });
+    bg.rect(0, horizonY - 1, GAME_WIDTH, 1).fill({ color: 0x305030, alpha: 0.5 });
+    bg.rect(0, horizonY, GAME_WIDTH, 1).fill({ color: 0x204020, alpha: 0.3 });
 
-    // 地面グラデーション（下半分）
+    // 地面グラデーション（夜の草原）
     const groundSteps = 12;
     const groundH = GAME_HEIGHT * 0.15;
-    const groundStartY = horizonY;
     for (let i = 0; i < groundSteps; i++) {
       const t = i / (groundSteps - 1);
-      const gr = Math.floor(0x0c + t * 0x08);
-      const gg = Math.floor(0x08 + t * 0x04);
-      const gb = Math.floor(0x20 + t * 0x10);
+      const gr = Math.floor(0x06 + t * 0x04);
+      const gg = Math.floor(0x14 + t * 0x0a);
+      const gb = Math.floor(0x0c + t * 0x06);
       const gColor = (gr << 16) | (gg << 8) | gb;
-      bg.rect(0, groundStartY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
+      bg.rect(0, horizonY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
         .fill(gColor);
     }
 
     this.container.addChild(bg);
+  }
 
-    // 背景パーティクル（星/光の粒 - より多く、より立体的に）
-    this.bgParticles = [];
-    for (let i = 0; i < 50; i++) {
-      this.bgParticles.push({
-        x: Math.random() * GAME_WIDTH,
-        y: Math.random() * GAME_HEIGHT * 0.38,
-        speed: 0.05 + Math.random() * 0.2,
-        size: Math.random() < 0.1 ? 2.5 : Math.random() < 0.3 ? 1.5 : 0.8,
-        brightness: 0.2 + Math.random() * 0.8,
-        twinklePhase: Math.random() * Math.PI * 2,
-        twinkleSpeed: 0.015 + Math.random() * 0.035,
-      });
+  /** 洞窟戦闘背景（岩肌 + 鍾乳石のシルエット） */
+  private drawCaveBackground(): void {
+    const bg = new Graphics();
+
+    // 岩肌のグラデーション（暗い焦げ茶 → 赤茶）
+    const gradientSteps = 24;
+    const stepH = Math.ceil(GAME_HEIGHT / gradientSteps);
+    for (let i = 0; i < gradientSteps; i++) {
+      const t = i / (gradientSteps - 1);
+      const r = Math.floor(0x10 + 0x1a * t);
+      const g = Math.floor(0x08 + 0x0c * t);
+      const b = Math.floor(0x06 + 0x08 * t);
+      const color = (r << 16) | (g << 8) | b;
+      bg.rect(0, i * stepH, GAME_WIDTH, stepH + 1).fill(color);
     }
-    this.container.addChild(this.bgGraphics);
+
+    // 天井の鍾乳石シルエット
+    const stalactiteCount = 9;
+    for (let i = 0; i < stalactiteCount; i++) {
+      const sx = (i + 0.5) * (GAME_WIDTH / stalactiteCount) + ((i * 37) % 13) - 6;
+      const w = 10 + ((i * 53) % 14);
+      const h = 18 + ((i * 71) % 30);
+      bg.poly([sx - w / 2, 0, sx + w / 2, 0, sx, h]).fill({ color: 0x0a0504, alpha: 0.9 });
+    }
+
+    // 地面（ごつごつした岩床）
+    const horizonY = GAME_HEIGHT * 0.4;
+    bg.rect(0, horizonY - 1, GAME_WIDTH, 2).fill({ color: 0x44281a, alpha: 0.5 });
+    const groundSteps = 12;
+    const groundH = GAME_HEIGHT * 0.15;
+    for (let i = 0; i < groundSteps; i++) {
+      const t = i / (groundSteps - 1);
+      const gr = Math.floor(0x1c + t * 0x10);
+      const gg = Math.floor(0x10 + t * 0x08);
+      const gb = Math.floor(0x0a + t * 0x06);
+      const gColor = (gr << 16) | (gg << 8) | gb;
+      bg.rect(0, horizonY + i * (groundH / groundSteps), GAME_WIDTH, groundH / groundSteps + 1)
+        .fill(gColor);
+    }
+
+    // 床の岩の影
+    for (let i = 0; i < 6; i++) {
+      const rx = ((i * 97) % GAME_WIDTH);
+      const ry = horizonY + 8 + ((i * 41) % Math.floor(groundH - 16));
+      bg.ellipse(rx, ry, 8 + ((i * 13) % 10), 3).fill({ color: 0x000000, alpha: 0.25 });
+    }
+
+    this.container.addChild(bg);
   }
 
   private drawEnemies(): void {
     this.enemyArea.removeChildren();
+    this.enemyContainers = [];
+    this.enemyHpBars = [];
 
     this.battleState.enemies.forEach((enemy, i) => {
-      const ex = GAME_WIDTH / 2 - ((this.battleState.enemies.length - 1) * 70) / 2 + i * 70;
-      const ey = 80;
-
-      if (enemy.isAlive) {
-        // 足元の影
-        const shadow = new Graphics();
-        shadow.ellipse(ex, ey + 34, 20, 5).fill({ color: 0x000000, alpha: 0.25 });
-        this.enemyArea.addChild(shadow);
-
-        // スプライト画像を試みる
-        const spriteId = enemy.data.sprite;
-        if (spriteId) {
-          const tex = Assets.get<Texture>(`${BASE}assets/sprites/enemies/${spriteId}.png`);
-          if (tex) {
-            const sprite = new Sprite(tex);
-            sprite.anchor.set(0.5);
-            sprite.x = ex;
-            sprite.y = ey;
-            this.enemyArea.addChild(sprite);
-          } else {
-            this.drawEnemyFallback(ex, ey);
-          }
-        } else {
-          this.drawEnemyFallback(ex, ey);
-        }
-
-        const name = new Text({ text: enemy.data.name, style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 9, fill: COLORS.TEXT }) });
-        name.anchor.set(0.5);
-        name.x = ex;
-        name.y = ey + 40;
-        this.enemyArea.addChild(name);
-
-        // HP バー
-        const hpRatio = enemy.currentHp / enemy.data.hp;
-        const barW = 40;
-        const bar = new Graphics();
-        bar.rect(ex - barW / 2, ey + 48, barW, 3).fill(0x333333);
-        bar.rect(ex - barW / 2, ey + 48, barW * hpRatio, 3).fill(hpRatio > 0.3 ? COLORS.HP_GREEN : COLORS.HP_RED);
-        this.enemyArea.addChild(bar);
+      if (!enemy.isAlive) {
+        this.enemyContainers.push(null);
+        this.enemyHpBars.push(null);
+        return;
       }
+
+      const pos = this.getEnemyPosition(i);
+      const c = new Container();
+      c.position.set(pos.x, pos.y);
+
+      // 足元の影
+      const shadow = new Graphics();
+      shadow.ellipse(0, 34, 20, 5).fill({ color: 0x000000, alpha: 0.25 });
+      c.addChild(shadow);
+
+      // スプライト画像を試みる
+      const spriteId = enemy.data.sprite;
+      const tex = spriteId ? Assets.get<Texture>(`${BASE}assets/sprites/enemies/${spriteId}.png`) : null;
+      if (tex) {
+        const sprite = new Sprite(tex);
+        sprite.anchor.set(0.5);
+        c.addChild(sprite);
+      } else {
+        this.drawEnemyFallback(c);
+      }
+
+      const name = new Text({ text: enemy.data.name, style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 9, fill: COLORS.TEXT }) });
+      name.anchor.set(0.5);
+      name.y = 40;
+      c.addChild(name);
+
+      // HP バー
+      const bar = new Graphics();
+      this.drawEnemyHpBar(bar, enemy.currentHp / enemy.data.hp);
+      c.addChild(bar);
+
+      this.enemyArea.addChild(c);
+      this.enemyContainers.push(c);
+      this.enemyHpBars.push(bar);
     });
 
     this.container.addChild(this.enemyArea);
   }
 
-  private drawEnemyFallback(ex: number, ey: number): void {
+  private drawEnemyHpBar(bar: Graphics, hpRatio: number): void {
+    const barW = 40;
+    bar.clear();
+    bar.rect(-barW / 2, 48, barW, 3).fill(0x333333);
+    if (hpRatio > 0) {
+      bar.rect(-barW / 2, 48, barW * hpRatio, 3).fill(hpRatio > 0.3 ? COLORS.HP_GREEN : COLORS.HP_RED);
+    }
+  }
+
+  /** ターン中の敵表示更新（HPバー更新 + 撃破アニメーション） */
+  private updateEnemyVisuals(): void {
+    this.battleState.enemies.forEach((enemy, i) => {
+      const c = this.enemyContainers[i];
+      if (!c) return;
+
+      if (enemy.isAlive) {
+        const bar = this.enemyHpBars[i];
+        if (bar) this.drawEnemyHpBar(bar, enemy.currentHp / enemy.data.hp);
+      } else if (!this.enemyDeathAnimated.has(i)) {
+        this.enemyDeathAnimated.add(i);
+        this.effects.enemyDeath(c);
+      }
+    });
+  }
+
+  private drawEnemyFallback(parent: Container): void {
     const rect = new Graphics();
     // シャドウ
-    rect.ellipse(ex, ey + 20, 16, 4).fill({ color: 0x000000, alpha: 0.3 });
+    rect.ellipse(0, 20, 16, 4).fill({ color: 0x000000, alpha: 0.3 });
     // ボディ（グラデーション風）
-    rect.roundRect(ex - 16, ey - 16, 32, 32, 4).fill(0x882233);
-    rect.roundRect(ex - 15, ey - 15, 30, 14, 3).fill({ color: 0xcc4455, alpha: 0.5 });
+    rect.roundRect(-16, -16, 32, 32, 4).fill(0x882233);
+    rect.roundRect(-15, -15, 30, 14, 3).fill({ color: 0xcc4455, alpha: 0.5 });
     // 目（2つの光点）
-    rect.circle(ex - 5, ey - 4, 2).fill(0xffee88);
-    rect.circle(ex + 5, ey - 4, 2).fill(0xffee88);
+    rect.circle(-5, -4, 2).fill(0xffee88);
+    rect.circle(5, -4, 2).fill(0xffee88);
     // 枠
-    rect.roundRect(ex - 16, ey - 16, 32, 32, 4).stroke({ color: 0xff6677, width: 1, alpha: 0.6 });
-    this.enemyArea.addChild(rect);
+    rect.roundRect(-16, -16, 32, 32, 4).stroke({ color: 0xff6677, width: 1, alpha: 0.6 });
+    parent.addChild(rect);
   }
 
   private drawPartyStatus(): void {
@@ -427,6 +536,15 @@ export class BattleScene extends Scene {
     // 背景パーティクルアニメーション
     this.updateBackground(delta);
 
+    // 敵の浮遊アニメーション（ゆっくり上下に揺れる）
+    this.bobTimer += delta;
+    this.battleState.enemies.forEach((enemy, i) => {
+      const c = this.enemyContainers[i];
+      if (c && enemy.isAlive) {
+        c.y = 80 + Math.sin(this.bobTimer * 0.06 + i * 1.7) * 2;
+      }
+    });
+
     switch (this.phase) {
       case 'result':
         if (input.isActionPressed) {
@@ -451,6 +569,18 @@ export class BattleScene extends Scene {
         this.handleBattleItemTargetInput(input);
         break;
 
+      case 'spellSelect':
+        this.handleSpellSelectInput(input);
+        break;
+
+      case 'spellTargetEnemy':
+        this.handleSpellTargetEnemyInput(input);
+        break;
+
+      case 'spellTargetAlly':
+        this.handleSpellTargetAllyInput(input);
+        break;
+
       case 'victory':
       case 'defeat':
         if (input.isActionPressed) {
@@ -467,10 +597,29 @@ export class BattleScene extends Scene {
   private updateBackground(delta: number): void {
     this.bgAnimTimer += delta * 0.016;
     this.bgGraphics.clear();
+    const isCave = this.background === 'cave';
 
     for (const p of this.bgParticles) {
       p.twinklePhase += p.twinkleSpeed * delta;
       const alpha = p.brightness * (0.3 + 0.7 * Math.abs(Math.sin(p.twinklePhase)));
+
+      if (isCave) {
+        // 火の粉が揺らめきながら舞い上がる
+        p.y -= p.speed * delta * 0.25;
+        p.x += Math.sin(p.twinklePhase) * 0.15;
+        if (p.y < 0) {
+          p.y = GAME_HEIGHT * 0.38;
+          p.x = Math.random() * GAME_WIDTH;
+        }
+        this.bgGraphics.circle(p.x, p.y, p.size + 1).fill({ color: 0x883311, alpha: alpha * 0.2 });
+        this.bgGraphics.circle(p.x, p.y, p.size * 0.8).fill({ color: 0xcc6622, alpha: alpha * 0.7 });
+        if (p.size >= 1.5) {
+          this.bgGraphics.circle(p.x, p.y, p.size * 0.4).fill({ color: 0xffaa44, alpha });
+        }
+        continue;
+      }
+
+      // 星が静かに流れる
       p.y += p.speed * delta * 0.08;
 
       // 画面外に出たら上に戻す
@@ -521,9 +670,8 @@ export class BattleScene extends Scene {
         case 4: // にげる
           this.executeFlee();
           break;
-        case 1:
-          // じゅもんは後のPhaseで
-          this.messageText.text = 'まだ つかえません。';
+        case 1: // じゅもん
+          this.openSpellSelect();
           break;
         case 2: // どうぐ
           this.openBattleItemSelect();
@@ -569,6 +717,159 @@ export class BattleScene extends Scene {
       this.phase = 'command';
       this.commandCursor = 0;
       this.drawCommandWindow();
+    }
+  }
+
+  private openSpellSelect(): void {
+    const member = this.battleState.party[this.currentMemberIdx];
+    this.memberSpells = member.spells
+      .map((id) => this.game.spells.get(id))
+      .filter((s): s is SpellData => !!s && s.usableInBattle);
+
+    if (this.memberSpells.length === 0) {
+      this.messageText.text = 'じゅもんを おぼえていない。';
+      return;
+    }
+
+    this.phase = 'spellSelect';
+    this.spellCursor = 0;
+    this.drawSpellSelect();
+  }
+
+  private drawSpellSelect(): void {
+    this.commandArea.removeChildren();
+
+    const member = this.battleState.party[this.currentMemberIdx];
+    const winH = this.memberSpells.length * 24 + 12;
+    const win = new Window(8, 150, 190, winH);
+    this.commandArea.addChild(win);
+
+    this.memberSpells.forEach((spell, i) => {
+      const usable = member.mp >= spell.mpCost;
+      const style = new TextStyle({
+        fontFamily: FONT_FAMILY,
+        fontSize: 13,
+        fill: usable ? COLORS.TEXT : COLORS.TEXT_DISABLED,
+      });
+      const text = new Text({ text: spell.name, style });
+      text.x = 32;
+      text.y = 158 + i * 24;
+      this.commandArea.addChild(text);
+
+      const cost = new Text({
+        text: `MP${spell.mpCost}`,
+        style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: usable ? COLORS.MP_BLUE : COLORS.TEXT_DISABLED }),
+      });
+      cost.x = 150;
+      cost.y = 158 + i * 24;
+      this.commandArea.addChild(cost);
+    });
+
+    const cursor = new Text({
+      text: '▶',
+      style: new TextStyle({ fontFamily: FONT_FAMILY, fontSize: 11, fill: COLORS.CURSOR }),
+    });
+    cursor.x = 16;
+    cursor.y = 160 + this.spellCursor * 24;
+    this.commandArea.addChild(cursor);
+
+    this.container.addChild(this.commandArea);
+  }
+
+  private handleSpellSelectInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.spellCursor > 0) {
+      this.spellCursor--;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawSpellSelect();
+    } else if (dir === 'down' && this.spellCursor < this.memberSpells.length - 1) {
+      this.spellCursor++;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawSpellSelect();
+    }
+
+    if (input.isActionPressed) {
+      const member = this.battleState.party[this.currentMemberIdx];
+      const spell = this.memberSpells[this.spellCursor];
+      if (member.mp < spell.mpCost) {
+        this.game.audio.playSeOrSynth('cancel');
+        this.messageText.text = 'MPが たりない！';
+        return;
+      }
+      this.game.audio.playSeOrSynth('confirm');
+      this.selectedSpell = spell;
+
+      if (spell.target === 'oneEnemy' || spell.target === 'allEnemies') {
+        this.phase = 'spellTargetEnemy';
+        this.targetCursor = 0;
+        this.drawTargetSelect();
+      } else {
+        this.phase = 'spellTargetAlly';
+        this.allyTargetCursor = 0;
+        this.drawAllyTargetSelect();
+      }
+    }
+
+    if (input.isCancelPressed) {
+      this.game.audio.playSeOrSynth('cancel');
+      this.phase = 'command';
+      this.drawCommandWindow();
+    }
+  }
+
+  private handleSpellTargetEnemyInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const aliveEnemies = this.battleState.enemies
+      .map((e, i) => ({ enemy: e, index: i }))
+      .filter((e) => e.enemy.isAlive);
+
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.targetCursor > 0) {
+      this.targetCursor--;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawTargetSelect();
+    } else if (dir === 'down' && this.targetCursor < aliveEnemies.length - 1) {
+      this.targetCursor++;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawTargetSelect();
+    }
+
+    if (input.isActionPressed && this.selectedSpell) {
+      this.game.audio.playSeOrSynth('confirm');
+      const target = aliveEnemies[this.targetCursor];
+      this.partyActions.push({ type: 'spell', spellId: this.selectedSpell.id, targetIndex: target.index });
+      this.nextMemberOrExecute();
+    }
+
+    if (input.isCancelPressed) {
+      this.game.audio.playSeOrSynth('cancel');
+      this.phase = 'spellSelect';
+      this.drawSpellSelect();
+    }
+  }
+
+  private handleSpellTargetAllyInput(input: { directionJustPressed: string | null; isActionPressed: boolean; isCancelPressed: boolean }): void {
+    const party = this.battleState.party;
+    const dir = input.directionJustPressed;
+    if (dir === 'up' && this.allyTargetCursor > 0) {
+      this.allyTargetCursor--;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawAllyTargetSelect();
+    } else if (dir === 'down' && this.allyTargetCursor < party.length - 1) {
+      this.allyTargetCursor++;
+      this.game.audio.playSeOrSynth('cursor');
+      this.drawAllyTargetSelect();
+    }
+
+    if (input.isActionPressed && this.selectedSpell) {
+      this.game.audio.playSeOrSynth('confirm');
+      this.partyActions.push({ type: 'spell', spellId: this.selectedSpell.id, targetIndex: this.allyTargetCursor });
+      this.nextMemberOrExecute();
+    }
+
+    if (input.isCancelPressed) {
+      this.game.audio.playSeOrSynth('cancel');
+      this.phase = 'spellSelect';
+      this.drawSpellSelect();
     }
   }
 
@@ -775,6 +1076,11 @@ export class BattleScene extends Scene {
           if (action.type === 'item' && action.itemId) {
             return this.executeItemAction(m, action.itemId, action.targetIndex ?? i);
           }
+          if (action.type === 'spell' && action.spellId) {
+            const spell = this.game.spells.get(action.spellId);
+            if (!spell) return this.emptyResult(m.name);
+            return this.battleState.executePartySpell(i, spell, action.targetIndex ?? i);
+          }
           return this.emptyResult(m.name);
         },
       });
@@ -842,9 +1148,9 @@ export class BattleScene extends Scene {
     // アクションに応じたエフェクトとSEを再生
     this.playActionEffects(result);
 
-    // ステータス中間更新
+    // ステータス中間更新（敵はHPバー更新 + 撃破アニメーション）
     this.drawPartyStatus();
-    this.drawEnemies();
+    this.updateEnemyVisuals();
 
     // メッセージ表示後に次のアクションへ
     this.showMessages(result.messages, () => {
@@ -857,6 +1163,14 @@ export class BattleScene extends Scene {
     if (result.action.type === 'defend') {
       this.game.audio.playSeOrSynth('defend');
       return;
+    }
+
+    // 敵の攻撃時は突進モーション
+    if (result.action.actor === 'enemy' && result.action.type === 'attack') {
+      const actorContainer = this.enemyContainers[result.action.actorIndex];
+      if (actorContainer) {
+        this.effects.lunge(actorContainer);
+      }
     }
 
     if (result.missed) {
@@ -901,6 +1215,21 @@ export class BattleScene extends Scene {
         this.game.audio.playSeOrSynth('damage');
         this.effects.flash(0xff0000, 0.3, 200);
         this.effects.shake(this.container, 3, 200);
+      }
+    }
+
+    // 味方の攻撃呪文 → 敵に炎エフェクト
+    if (result.action.actor === 'party' && result.action.type === 'spell' && result.damage && result.damage > 0) {
+      const enemyIdx = result.action.targetIndex ?? 0;
+      const enemyPos = this.getEnemyPosition(enemyIdx);
+      this.game.audio.playSeOrSynth('spell');
+      this.effects.flash(0xff8833, 0.35, 250);
+      this.effects.shake(this.enemyArea, 4, 250);
+      this.effects.showFireBurst(enemyPos.x, enemyPos.y);
+      this.effects.showDamage(enemyPos.x, enemyPos.y - 25, result.damage, false);
+
+      if (result.targetDied) {
+        this.game.audio.playSeOrSynth('enemyDeath');
       }
     }
 
@@ -965,9 +1294,9 @@ export class BattleScene extends Scene {
   }
 
   private showVictory(): void {
-    // 勝利エフェクト
+    // 勝利エフェクト + ファンファーレ（戦闘BGMを止めてジングル再生）
     this.effects.victoryFlash();
-    this.game.audio.playSeOrSynth('victory');
+    this.game.audio.playJingle('fanfare');
 
     const rewards = this.battleState.getVictoryRewards();
     const messages: string[] = [];
@@ -984,9 +1313,10 @@ export class BattleScene extends Scene {
       m.exp += expEach;
     }
 
-    // ドロップアイテム
+    // ドロップアイテム（アイテムマスタから名前を取得）
     for (const drop of rewards.drops) {
-      messages.push(`${drop.name}を てにいれた！`);
+      const dropName = this.itemDataMap.get(drop.id)?.name ?? drop.name;
+      messages.push(`${dropName}を てにいれた！`);
       this.game.state.addItem(drop.id);
     }
 
@@ -1022,8 +1352,9 @@ export class BattleScene extends Scene {
   }
 
   private showDefeat(): void {
-    // 全滅エフェクト（暗転）
+    // 全滅エフェクト（暗転）+ ゲームオーバージングル
     this.effects.flash(0xff0000, 0.6, 800);
+    this.game.audio.playJingle('gameover');
     this.showMessages(['ぜんめつしてしまった...'], () => {
       this.phase = 'defeat';
       this.messageText.text = '▼ つづける';

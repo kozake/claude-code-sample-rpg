@@ -12,6 +12,7 @@ import { MessageWindow } from '../ui/MessageWindow';
 import { MenuScene } from './MenuScene';
 import { StatusScene } from './StatusScene';
 import { ItemScene } from './ItemScene';
+import { SpellScene } from './SpellScene';
 import { EquipScene } from './EquipScene';
 import { BattleScene } from './BattleScene';
 import { ShopScene } from './ShopScene';
@@ -21,7 +22,7 @@ import { ChoiceWindow } from '../ui/ChoiceWindow';
 import { DialogueManager } from '../systems/DialogueManager';
 import { CutsceneScene } from './CutsceneScene';
 import type { Game } from '../Game';
-import type { MapData, MapEvent, EnemyData, EnemyGroupData, NPCData, CutsceneData } from '../data/types';
+import type { MapData, MapEvent, EnemyData, EnemyGroupData, ItemData, NPCData, CutsceneData } from '../data/types';
 
 /**
  * フィールドシーン
@@ -53,16 +54,19 @@ export class FieldScene extends Scene {
   private enemyDataCache: EnemyData[] | null = null;
   private groupDataCache: EnemyGroupData[] | null = null;
   private npcDataCache: Map<string, NPCData> = new Map();
+  private itemDataCache: Map<string, ItemData> = new Map();
   private npcEntities: NpcEntity[] = [];
   private dialogueManager!: DialogueManager;
   private choiceWindow = new ChoiceWindow();
   private blockedWarpKey: string | null = null;
+  private arrivalMessage?: string[];
 
-  constructor(game: Game, mapId: string, startX?: number, startY?: number) {
+  constructor(game: Game, mapId: string, startX?: number, startY?: number, arrivalMessage?: string[]) {
     super(game);
     this.mapId = mapId;
     this.startX = startX;
     this.startY = startY;
+    this.arrivalMessage = arrivalMessage;
   }
 
   async onEnter(): Promise<void> {
@@ -103,6 +107,14 @@ export class FieldScene extends Scene {
     await this.loadNpcData();
     this.spawnNpcEntities();
 
+    // アイテムマスタ読み込み（ショップ表示用）
+    const allItems = await this.game.content.loadJson<ItemData[]>('items/items.json');
+    if (allItems) {
+      for (const item of allItems) {
+        this.itemDataCache.set(item.id, item);
+      }
+    }
+
     // UIオーバーレイ（カメラの影響を受けない）
     this.dpad = new DPad(this.game.input);
     this.actionBtn = new ActionButton(this.game.input);
@@ -114,6 +126,12 @@ export class FieldScene extends Scene {
     this.container.addChild(this.messageWindow.container);
     this.container.addChild(this.choiceWindow.container);
     this.container.addChild(this.overlayContainer);
+
+    // 到着時メッセージ（全滅後の復活など）
+    if (this.arrivalMessage) {
+      this.messageWindow.show(this.arrivalMessage);
+      this.arrivalMessage = undefined;
+    }
   }
 
   private async loadNpcData(): Promise<void> {
@@ -229,11 +247,14 @@ export class FieldScene extends Scene {
           case 'item':
             this.showOverlay(new ItemScene(this.game, () => this.openMenu()));
             break;
+          case 'spell':
+            this.showOverlay(new SpellScene(this.game, () => this.openMenu()));
+            break;
           case 'equip':
             this.showOverlay(new EquipScene(this.game, () => this.openMenu()));
             break;
           default:
-            // じゅもん/ならびかえ/さくせんは後のPhaseで実装
+            // ならびかえ/さくせんは後のPhaseで実装
             break;
         }
       }
@@ -364,6 +385,10 @@ export class FieldScene extends Scene {
     const py = this.player.tileY;
 
     const battleScene = new BattleScene(this.game, enemies, async (victory) => {
+      if (!victory && this.isPartyWiped()) {
+        this.handleGameOver();
+        return;
+      }
       if (victory) {
         // onceFlag設定
         if (event.onceFlag) {
@@ -399,7 +424,7 @@ export class FieldScene extends Scene {
       }
       const field = new FieldScene(this.game, this.mapId, px, py);
       this.game.scenes.switchTo(field);
-    });
+    }, this.mapData?.isDungeon ? 'cave' : 'field');
     this.game.scenes.switchTo(battleScene);
   }
 
@@ -500,12 +525,15 @@ export class FieldScene extends Scene {
       case 'weapon':
       case 'armor':
       case 'item': {
-        const shopItems = (npc.shopItems ?? []).map((id) => ({
-          id,
-          name: id, // TODO: アイテムマスタから名前を引く
-          price: 10,
-        }));
-        this.showOverlay(new ShopScene(this.game, shopItems, () => this.closeOverlay()));
+        const shopItems = (npc.shopItems ?? []).map((id) => {
+          const data = this.itemDataCache.get(id);
+          return {
+            id,
+            name: data?.name ?? id,
+            price: data?.price ?? 10,
+          };
+        });
+        this.showOverlay(new ShopScene(this.game, shopItems, this.itemDataCache, () => this.closeOverlay()));
         break;
       }
       case 'inn': {
@@ -571,11 +599,37 @@ export class FieldScene extends Scene {
     if (enemies.length === 0) return;
 
     const battleScene = new BattleScene(this.game, enemies, (victory) => {
+      if (!victory && this.isPartyWiped()) {
+        this.handleGameOver();
+        return;
+      }
       // 戦闘後: フィールドに戻る
       const field = new FieldScene(this.game, this.mapId, this.player.tileX, this.player.tileY);
       this.game.scenes.switchTo(field);
-    });
+    }, this.mapData?.isDungeon ? 'cave' : 'field');
     this.game.scenes.switchTo(battleScene);
+  }
+
+  private isPartyWiped(): boolean {
+    return this.game.state.active.every((m) => m.hp <= 0);
+  }
+
+  /** 全滅処理: 所持金半分で村に戻され全回復（DQ風） */
+  private handleGameOver(): void {
+    const state = this.game.state;
+    state.gold = Math.floor(state.gold / 2);
+    for (const m of state.active) {
+      m.hp = m.maxHp;
+      m.mp = m.maxMp;
+      m.statusEffects = [];
+    }
+
+    const field = new FieldScene(this.game, 'village', undefined, undefined, [
+      'めの まえが まっくらに なった...',
+      'きがつくと むらに はこばれていた。',
+      'もちがねが はんぶんに なってしまった...',
+    ]);
+    this.game.scenes.switchTo(field);
   }
 
   onExit(): void {

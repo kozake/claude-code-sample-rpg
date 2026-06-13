@@ -421,4 +421,161 @@ describe('BattleState', () => {
       expect(state.isOver).toBe(false);
     });
   });
+
+  // ================================================================
+  // executePartySpell
+  // ================================================================
+  describe('executePartySpell', () => {
+    const hoimi = {
+      id: 'hoimi',
+      name: 'ホイミ',
+      mpCost: 3,
+      type: 'heal' as const,
+      power: 30,
+      element: 'none' as const,
+      target: 'oneAlly' as const,
+      usableInBattle: true,
+      usableInField: true,
+      learnLevel: 3,
+      learnableBy: ['hero'],
+    };
+
+    const gira = {
+      id: 'gira',
+      name: 'ギラ',
+      mpCost: 4,
+      type: 'damage' as const,
+      power: 18,
+      element: 'fire' as const,
+      target: 'oneEnemy' as const,
+      usableInBattle: true,
+      usableInField: false,
+      learnLevel: 4,
+      learnableBy: ['hero'],
+    };
+
+    it('回復呪文: MPを消費してHP回復', () => {
+      // power=30, variance=6 → random 0.5: 30 + floor(0.5*13) - 6 = 30
+      randomSpy.mockReturnValue(0.5);
+      const member = makePartyMember({ hp: 10, maxHp: 30, mp: 5 });
+      const state = new BattleState([member], [makeEnemyData()]);
+
+      const result = state.executePartySpell(0, hoimi, 0);
+      expect(member.mp).toBe(2);
+      expect(member.hp).toBe(30); // 回復量30だが最大HPまで
+      expect(result.healed).toBe(20);
+      expect(result.messages[0]).toContain('ホイミ');
+    });
+
+    it('MP不足では呪文が失敗する', () => {
+      const member = makePartyMember({ hp: 10, mp: 2 });
+      const state = new BattleState([member], [makeEnemyData()]);
+
+      const result = state.executePartySpell(0, hoimi, 0);
+      expect(member.mp).toBe(2); // 消費されない
+      expect(member.hp).toBe(10); // 回復しない
+      expect(result.missed).toBe(true);
+      expect(result.messages).toContain('しかし MPが たりない！');
+    });
+
+    it('攻撃呪文: 敵にダメージを与えて撃破', () => {
+      // power=18, variance=3 → random 0.5: 18 + floor(0.5*7) - 3 = 18
+      randomSpy.mockReturnValue(0.5);
+      const member = makePartyMember({ mp: 10 });
+      const state = new BattleState([member], [makeEnemyData({ hp: 10 })]);
+
+      const result = state.executePartySpell(0, gira, 0);
+      expect(member.mp).toBe(6);
+      expect(result.damage).toBe(18);
+      expect(result.targetDied).toBe(true);
+      expect(state.enemies[0].isAlive).toBe(false);
+    });
+
+    it('攻撃呪文: 耐性immuneでダメージ無効', () => {
+      randomSpy.mockReturnValue(0.5);
+      const member = makePartyMember({ mp: 10 });
+      const state = new BattleState(
+        [member],
+        [makeEnemyData({ hp: 10, resistances: { fire: 'immune' } })]
+      );
+
+      const result = state.executePartySpell(0, gira, 0);
+      expect(result.damage).toBe(0);
+      expect(state.enemies[0].currentHp).toBe(10);
+      expect(result.messages.some((m) => m.includes('きかなかった'))).toBe(true);
+    });
+
+    it('攻撃呪文: 対象が死亡済みなら生存敵に変更', () => {
+      randomSpy.mockReturnValue(0.5);
+      const member = makePartyMember({ mp: 10 });
+      const state = new BattleState(
+        [member],
+        [makeEnemyData({ hp: 10 }), makeEnemyData({ hp: 50 })]
+      );
+      state.enemies[0].isAlive = false;
+
+      const result = state.executePartySpell(0, gira, 0);
+      expect(result.action.targetIndex).toBe(1);
+      expect(state.enemies[1].currentHp).toBe(32);
+    });
+  });
+
+  // ================================================================
+  // 敵の固定威力特技（つうこんのいちげき等）
+  // ================================================================
+  describe('敵の固定威力特技', () => {
+    const skillEnemy = () =>
+      makeEnemyData({
+        skills: [{ type: 'skill', skillName: 'つうこんのいちげき', power: 25, weight: 1 }],
+      });
+
+    it('スキル威力に基づくダメージ（防御無視）', () => {
+      // variance = floor(25*0.2) = 5 → random 0.5: 25 + floor(0.5*11) - 5 = 25
+      randomSpy.mockReturnValue(0.5);
+      const member = makePartyMember({ hp: 30, defense: 100 });
+      const state = new BattleState([member], [skillEnemy()]);
+
+      const result = state.executeEnemyAction(0);
+      expect(result.damage).toBe(25);
+      expect(member.hp).toBe(5);
+      expect(result.messages[0]).toContain('つうこんのいちげき');
+    });
+
+    it('防御中はダメージ半減', () => {
+      randomSpy.mockReturnValue(0.5);
+      const member = makePartyMember({ hp: 30 });
+      const state = new BattleState([member], [skillEnemy()]);
+      state.partyDefending.add(0);
+
+      const result = state.executeEnemyAction(0);
+      expect(result.damage).toBe(12); // floor(25/2)
+      expect(member.hp).toBe(18);
+    });
+  });
+
+  // ================================================================
+  // 逃走耐性
+  // ================================================================
+  describe('逃走耐性', () => {
+    it('fleeResistance 100以上の敵（ボス）からは必ず逃走失敗', () => {
+      randomSpy.mockReturnValue(0); // 通常なら必ず成功する乱数
+      const state = new BattleState(
+        [makePartyMember()],
+        [makeEnemyData({ fleeResistance: 100 })]
+      );
+      const result = state.attemptFlee();
+      expect(result.success).toBe(false);
+    });
+
+    it('倒したボスの逃走耐性は無視される', () => {
+      randomSpy.mockReturnValue(0);
+      const state = new BattleState(
+        [makePartyMember()],
+        [makeEnemyData({ fleeResistance: 100 }), makeEnemyData({ fleeResistance: 0 })]
+      );
+      state.enemies[0].isAlive = false;
+      const result = state.attemptFlee();
+      expect(result.success).toBe(true);
+    });
+  });
 });
